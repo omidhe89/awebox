@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 """
-Circular pumping trajectory for the Ampyx AP2 aircraft.
+Circular pumping trajectory for the megAWES 6DOF reference rigid-wing aircraft.
 Model and constraints as in:
 
 "Performance assessment of a rigid wing Airborne Wind Energy pumping system",
 G. Licitra, J. Koenemann, A. Bürger, P. Williams, R. Ruiterkamp, M. Diehl
 Energy, Vol.173, pp. 569-585, 2019.
 
+
+
 :author: Jochem De Schutter
-:edited: Rachel Leuthold
+:edited: Thomas Haas
 """
 
 import awebox as awe

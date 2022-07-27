@@ -74,7 +74,7 @@ def geometry():
     geometry['wing_profile'] = None
 
     # tether attachment point
-    geometry['r_tether'] = np.array([[1.67, 0, -0.229]])
+    geometry['r_tether'] = np.reshape([1.67, 0, -0.229], (3,1))
 
     return geometry
 
