@@ -5,22 +5,21 @@ import casadi as ca
 
 def set_megawes_settings(options):
 
-    # 6DOF Ampyx Ap2 model
+    # 6DOF megAWES model
     options['user_options.system_model.kite_dof'] = 6
     options['user_options.kite_standard'] = awe.megawes_data.data_dict()
 
     # tether parameters
     options['params.tether.cd'] = 1.2
     diam_t = 0.0297
-    options['params.tether.rho'] = 0.6729*4/(np.pi*0.0297**2)
-    options['user_options.trajectory.fixed_params'] = {'diam_t': 0.0297}
+    options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
+    options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
     options['model.tether.use_wound_tether'] = False # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
 
     # tether drag model (more accurate than the Argatov model in Licitra2019)
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
-
 
     # don't model generator
     options['model.model_bounds.wound_tether_length.include'] = False

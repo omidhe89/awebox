@@ -1,13 +1,17 @@
 #!/usr/bin/python3
 """
-Circular pumping trajectory for the megAWES 6DOF reference rigid-wing aircraft.
+Circular pumping trajectory for the 6DOF megAWES reference rigid-wing aircraft.
 Model and constraints as in:
 
 "Performance assessment of a rigid wing Airborne Wind Energy pumping system",
 G. Licitra, J. Koenemann, A. Bürger, P. Williams, R. Ruiterkamp, M. Diehl
 Energy, Vol.173, pp. 569-585, 2019.
 
+Aircraft dimensions and constraints as in:
 
+"Six-degrees-of-freedom simulation model for future multi-megawatt airborne wind energy systems",
+Dylan Eijkelhof, Roland Schmehl
+Renewable Energy, Vol.196, pp. 137-150, 2022.
 
 :author: Jochem De Schutter
 :edited: Thomas Haas
@@ -19,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # indicate desired system architecture
-# here: single kite with 6DOF Ampyx AP2 model
+# here: single kite with 6DOF megAWES aircraft
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options = set_megawes_settings(options)
@@ -45,7 +49,7 @@ options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 
 # build and optimize the NLP (trial)
-trial = awe.Trial(options, 'Ampyx_AP2')
+trial = awe.Trial(options, 'megAWES')
 trial.build()
 trial.optimize()
 
