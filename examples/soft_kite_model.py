@@ -53,8 +53,8 @@ options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
 options['nlp.phase_fix_reelout'] = 0.7 # only applicable for 'single_reelout' phase fix option
 
 # NLP options
-options['nlp.n_k'] = 60
-options['nlp.collocation.u_param'] = 'poly'
+options['nlp.n_k'] = 40 #60
+options['nlp.collocation.u_param'] = 'zoh' #'poly'
 options['solver.linear_solver'] = 'ma57' # 'mumps'
 
 # initialization
@@ -76,6 +76,7 @@ options['visualization.cosmetics.interpolation.N']  = 250
 trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize(final_homotopy_step='final')
+trial.write_to_csv('./trial_outputs')
 trial.plot(['states', 'controls', 'quad'])
 
 outputs = trial.visualization.plot_dict['outputs']
