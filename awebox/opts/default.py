@@ -350,15 +350,10 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'lemniscate', 'el_width',     8*np.pi/180.,  ('lemniscate el range', None), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
-#<<<<<<< HEAD
         ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'s'),
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 's'),
+        ('solver',  'initialization', None, 'cone_deg',             25.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'s'),
-#=======
-#        ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
-#        ('solver',  'initialization', None, 'cone_deg',             25.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
-#        ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
-#>>>>>>> develop
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
