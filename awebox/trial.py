@@ -115,7 +115,7 @@ class Trial(object):
 
     def optimize(self, options_seed = [], final_homotopy_step = 'final',
                  warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False):
+                 debug_locations = [], save_flag = False, intermediate_solve = False):
 
         if not options_seed:
             options = self.__options
@@ -126,7 +126,6 @@ class Trial(object):
             architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
             options.build(architecture)
             import awebox.mdl.dynamics as dyn
-            _, options['model']['scaling'] = dyn.generate_si_variables(options['model']['scaling'], self.__model.variables)
             self.__model.generate_scaled_variable_bounds(options['model'])
             self.__nlp.generate_variable_bounds(options['nlp'], self.__model)
 
@@ -146,7 +145,7 @@ class Trial(object):
                                   self.__formulation, self.__visualization,
                                   final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
-                                  debug_locations)
+                                  debug_locations, intermediate_solve = intermediate_solve)
         self.__solution_dict = self.generate_solution_dict()
 
         self.set_timings('optimization')
@@ -417,6 +416,14 @@ class Trial(object):
     @return_status_numeric.setter
     def return_status_numeric(self, value):
         print('Cannot set return_status_numeric object.')
+
+    @property
+    def solution_dict(self):
+        return self.__solution_dict
+
+    @solution_dict.setter
+    def solution_dict(self, value):
+        print('Cannot set solution_dict object.')
 
 def generate_initial_state(model, V_init):
     x0 = model.struct_list['x'](0.)

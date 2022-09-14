@@ -108,6 +108,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                 for kite in kite_nodes:
                     data = np.array(outputs[opt[0]][base_name + str(kite)][0])
                     local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+#<<<<<<< HEAD
 
                     if number_of_opts == 1:
                         axes[0].plot(tgrid_ip, data, color=local_color)
@@ -120,6 +121,13 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                     axes[0].axhline(y=epigraph, color='gray', linestyle='--')
                 else:
                     axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
+#=======
+#                    axes[odx].plot(tgrid_ip, data, color=local_color)
+#
+#            if (epigraph is not None) and (isinstance(epigraph, float)):
+#
+#                axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
+#>>>>>>> develop
 
             if 't_switch' in plot_dict['time_grids'].keys():
                 t_switch = float(plot_dict['time_grids']['t_switch'])
@@ -161,7 +169,7 @@ def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
     if len(plot_dict['outputs']['model_inequalities'].keys()) > 0:
         plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
 
-    plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
+    # plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
 
 def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 

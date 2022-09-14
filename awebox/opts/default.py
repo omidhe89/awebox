@@ -95,15 +95,12 @@ def set_default_options(default_user_options, help_options):
 
         ## aero model
         ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',           ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
-        ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
-        ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
-        ('model', 'aero', 'three_dof',  'dcoeff_max',   [5., 80. * np.pi / 180],        ('include a bound on dcoeff', None), 'x'),
-        ('model', 'aero', 'three_dof',  'dcoeff_min',   [-5., -80. * np.pi / 180],      ('include a bound on dcoeff', None), 'x'),
         ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
         ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
+        ('params','aero', None,         'moment_factor',   1.0,              ('enhance aerodynamic moment generator by control surfaces', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
@@ -180,8 +177,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
         #### system bounds and limits (physical)
-        ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-4, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'dl_t',          [-30.0, 30.0],                                                   ('main tether speed bounds [m/s]', None),'x'),
@@ -190,16 +187,24 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                                  ('intermediate tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'x',          'omega',        [np.array([-50.0, -50.0, -50.0]), np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
+        ('model',  'system_bounds', 'x',          'omega',        [np.pi/180.0*np.array([-50.0, -50.0, -50.0]), np.pi/180.0*np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
         ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
+#<<<<<<< HEAD
         ('model',  'system_bounds', 'u',           'dyaw',         [-1.5, 1.5],                                                                  ('soft kite dyaw bounds', None),'x'),
         ('model',  'system_bounds', 'x',           'pitch',       [0.0, 30.0*np.pi/180.0],                                                      ('soft kite pitch bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dpitch',      [-1.5, 1.5],                                                      ('soft kite dpitch bounds', None),'x'),
+#=======
+#        ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
+#        ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
+#
+#        ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
+#        ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
+#>>>>>>> develop
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
@@ -221,10 +226,12 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'rot_angles_cross',      np.array([80.0*np.pi/180., 80.0*np.pi/180., 85.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
-        ('model',   'model_bounds', 'dcoeff_actuation', 'include',          True,       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', 'coeff_actuation',  'include',          True,       ('include a bound on coeff', None), 'x'),
+        ('model',   'model_bounds', 'ellipsoidal_flight_region', 'include',  False,   ('include ellipsoidal flight hull', None), 't'),
+        ('params',  'model_bounds', 'ellipsoidal_flight_region', 'radius',  500.0,   ('ellipsoidal flight hull ground radius', None), 's'),
+        ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
+        ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None),'x'),
         ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
@@ -294,7 +301,8 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
-
+        ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
+        ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
@@ -310,22 +318,27 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         # todo: embed other solvers
-        ('solver',  None,   None,   'linear_solver',        'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
+        ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
+        ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
         ('solver',  None,   None,   'max_iter',             2000,       ('maximum ipopt iterations [int]', None),'x'),
         ('solver',  None,   None,   'max_cpu_time',         1.e4,       ('maximum cpu time (seconds) ipopt can spend in one stage of the homotopy', None), 'x'),
         ('solver',  None,   None,   'mu_target',            0.,         ('target for interior point homotopy parameter in ipopt [float]', None),'x'),
         ('solver',  None,   None,   'mu_init',              1.,         ('start value for interior point homotopy parameter in ipopt [float]', None),'x'),
         ('solver',  None,   None,   'tol',                  1e-8,       ('ipopt solution tolerance [float]', None),'x'),
-        ('solver',  None,   None,   'callback',             False,      ('plot intermediate solutions', [True,False]),'x'),
+        ('solver',  None,   None,   'callback',             False,      ('record nlp iterations', [True,False]),'x'),
+        ('solver',  None,   None,   'record_states',        False,      ('record state trajectories in callback', [True,False]),'x'),
         ('solver',  None,   None,   'callback_step',        10,         ('callback interval [int]', None),'x'),
         ('solver',  None,   None,   'jit',                  False,      ('callback interval [int]', None),'t'),
         ('solver',  None,   None,   'compiler',            'clang',     ('callback interval [int]', None),'x'),
         ('solver',  None,   None,   'jit_flags',           '-O0',       ('flags to be passed to jit compiler', None),'t'),
         ('solver',  None,   None,   'expand_overwrite',     None,       ('expand MX --> SX [int]', None),'t'),
 
-        ('solver',  None,   None,   'homotopy_method',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
-        ('solver',  None,   None,   'homotopy_step',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
+        ('solver',  'homotopy_method',None,  'type',       'scheduled',  ('homotopy method type used', ['scheduled', 'single']), 's'),
+        ('solver',  'homotopy_method',None,  'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  'homotopy_method',None,  'psi',        'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
+        ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
         ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
@@ -337,49 +350,71 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'lemniscate', 'el_width',     8*np.pi/180.,  ('lemniscate el range', None), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
+#<<<<<<< HEAD
         ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'s'),
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 's'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'s'),
+#=======
+#        ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
+#        ('solver',  'initialization', None, 'cone_deg',             25.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
+#        ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
+#>>>>>>> develop
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
         ('solver',  'initialization', None, 'l_t_full_to_unwound_ratio', 1.2,   ('initial guess ratio used to set full (main) tether length [-]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
-        ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
+        ('solver',  'initialization', None, 'max_cone_angle_single',30.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
+        ('solver',  'initialization', None, 'init_clipping',        True,    ('clip initial guess parameters to reasonable values', [True, False]), 'x'),
 
         ('solver',  'initialization', 'theta',  'l_i',      100.,     ('intermediate tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_c',      100.,     ('cross-tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_t',   5e-3,     ('main tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'diam_i',   4e-3,     ('intermediate tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_s',   5e-3,     ('secondary tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1.,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'cost_factor',    None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'l_t',                   1e-3,       ('optimization weight for all l_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'dl_t',                  1e-3,       ('optimization weight for all dl_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'ddl_t',                 2e4,       ('optimization weight for all ddl_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'dddl_t',                2e2,       ('optimization weight for all ddl_t variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),
         ('solver',   'weights',        None,   'w',                     1e-10,      ('optimization weight for all vortex variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'omega',                 1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
         ('solver',   'weights',        None,   'r',                     1e1,        ('optimization weight for all r variables [-]', None),'x'),
-        ('solver',   'weights',        None,   'delta',                 1e-10,      ('optimization weight for all delta variables [-]', None),'x'),
-        ('solver',   'weights',        None,   'ddelta',                1e-10,      ('optimization weight for all ddelta variables [-]', None),'x'),
+        ('solver',   'weights',        None,   'delta',                 1e-4,      ('optimization weight for all delta variables [-]', None),'x'),
+        ('solver',   'weights',        None,   'ddelta',                1e2,      ('optimization weight for all ddelta variables [-]', None),'x'),
         ('solver',   'weights',        None,   'lambda',                1.,         ('optimization weight for all lambda variables [-]', None),'x'),
         ('solver',   'weights',        None,   'a',                     1e-3,       ('optimization weight for lifted variable a [-]', None),'x'),
         ('solver',   'weights',        None,   'dkappa',                1e1,        ('optimization weight for control variable dkappa [-]', None),'s'),
+#<<<<<<< HEAD
         ('solver',   'weights',        None,   'yaw',                   1,          ('optimization weight for state variable yaw [-]', None),'s'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
         ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
+#=======
+#        ('solver',   'weights',        None,   'P_max',                 0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
+#        ('solver',   'weights',        None,   'ddq',                   1e0,        ('optimization weight for all ddq variables [-]', None),'s'),
+#        ('solver',   'weights',        None,   'domega',                5e7,        ('optimization weight for all domega variables [-]', None),'s'),
+#        ('solver',   'weights',        None,   'l_s',                   1e0,       ('optimization weight for the l_s variable [-]', None),'s'),
+#        ('solver',   'weights',        None,   'diam_s',                1e0,       ('optimization weight for the diam_s variable [-]', None),'s'),
+#        ('solver',   'weights',        None,   'diam_t',                1e0,       ('optimization weight for the diam_t variable [-]', None),'s'),
+#>>>>>>> develop
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
-        ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
+        ('solver',  'cost',             'u_regularisation',     0,  1e-1,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
-        ('solver',  'cost',             'xdot_regularisation', 0,  1e-1,       ('starting cost for xdot regularisation', None),'s'),
+        ('solver',  'cost',             'xdot_regularisation', 0,   1e-8,       ('starting cost for xdot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 's'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'s'),
@@ -390,18 +425,19 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nu',               0,      0.,         ('starting cost for nu', None),'s'),
         ('solver',  'cost',             'upsilon',          0,      0.,         ('starting cost for upsilon', None),'s'),
 
-        ('solver',  'cost',             'fictitious',       0,      1e-4,       ('starting cost for fictitious', None),'s'),
+        ('solver',  'cost',             'fictitious',       0,      1e3,       ('starting cost for fictitious', None),'s'),
         ('solver',  'cost',             'power',            0,      0.,         ('starting cost for power', None),'s'),
         ('solver',  'cost',             'power_derivative', 0,      0.,         ('starting cost for power derivative', None),'s'),
-        ('solver',  'cost',             't_f',              0,      1e-2,       ('starting cost for final time', None),'s'),
+        ('solver',  'cost',             't_f',              0,      0.,       ('starting cost for final time', None),'s'),
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
+        ('solver',  'cost',             'beta',             0,      8e0,          ('starting cost for P_max', None),'s'),
+        ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
-        ('solver',  'cost',             'tracking',         1,      1.e-6,         ('update cost for tracking', None),'s'),
-        ('solver',  'cost',             'gamma',            1,      1e3,        ('update cost for gamma', None),'s'),
+        ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'s'),
-        ('solver',  'cost',             'psi',              1,      1e3,        ('update cost for psi', None),'s'),
+        ('solver',  'cost',             'psi',              1,      1e1,        ('update cost for psi', None),'s'),
         ('solver',  'cost',             'tau',              1,      1e3,        ('update cost for tau', None),'s'),
         ('solver',  'cost',             'eta',              1,      1e3,        ('update cost for eta', None),'s'),
         ('solver',  'cost',             'nu',               1,      1e3,        ('update cost for nu', None),'s'),
@@ -415,7 +451,6 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',  'cost',             'fictitious',           2,  1.e0,       ('second update cost for fictitious', None), 's'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'s'),
-        ('solver',  'cost',             'tracking',             2,  1.e-6,          ('second update cost for tracking', None),'s'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
@@ -491,6 +526,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'dc_max', 1e1,                      ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'ddc_max', 5e1,                     ('maximum invariant test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'r_max', 1e-2,                      ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_loyd_factor', 30,              ('maximum loyd factor test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_power_harvesting_factor', 100, ('maximum power harvesting factor test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_tension', 1e6,                 ('maximum max main tether tension test parameter', None), 'x'),

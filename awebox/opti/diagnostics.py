@@ -115,10 +115,8 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    l_t_max = np.amax(plot_dict['x']['l_t'][0])
     z_av = np.mean(plot_dict['x']['q10'][2])
 
-    power_and_performance['l_t_max'] = l_t_max
     power_and_performance['z_av'] = z_av
 
     return power_and_performance
@@ -175,7 +173,10 @@ def compute_position_indicators(power_and_performance, plot_dict):
     q10 = plot_dict['x']['q10']
     elevation = []
     for i in range(q10[0].shape[0]):
-        elevation += [np.arccos(np.linalg.norm(np.array([q10[0][i], q10[1][i], 0.0])) / np.linalg.norm(np.array([q10[0][i], q10[1][i], q10[2][i]])))]
+        q10_0 = q10[0][i][0]
+        q10_1 = q10[1][i][0]
+        q10_2 = q10[2][i][0]
+        elevation += [np.arccos(np.linalg.norm(np.array([q10_0, q10_1, 0.0])) / np.linalg.norm(np.array([q10_0, q10_1, q10_2])))]
     elevation = np.mean(elevation) * 180 / np.pi
     power_and_performance['elevation'] = elevation
 
@@ -201,7 +202,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
         q = np.array([q10[0][i], q10[1][i], q10[2][i]])
         dq10hat += [np.linalg.norm(
-            dq - np.matmul(dq.T, q / np.linalg.norm(q)) * q / np.linalg.norm(q))]
+            dq.squeeze() - np.dot(dq.squeeze().T, q.squeeze() / np.linalg.norm(q)) * q.squeeze() / np.linalg.norm(q))]
 
     dq10_av = np.mean(np.array(dq10hat))
     power_and_performance['dq10_av'] = dq10_av

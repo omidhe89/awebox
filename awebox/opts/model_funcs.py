@@ -817,10 +817,6 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
-    # note: lagrangian dynamics is not yet set up for scaled q's
-    q_scaling = 1.
-    options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('descript', None), 'x'))
-
     initialization_theta = options['solver']['initialization']['theta']
     for param in initialization_theta.keys():
         options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))
@@ -969,7 +965,7 @@ def get_gravity_ref(options):
 
 def build_lambda_e_power_scaling(options, options_tree, fixed_params, architecture):
 
-    lambda_scaling, energy_scaling, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
+    lambda_scaling, energy_scaling, power_cost, power = get_suggested_lambda_energy_power_scaling(options, architecture)
 
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
@@ -979,6 +975,9 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
 
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('Max. power scaling factor', None),'x'))
+    options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('Max. power initialization', None),'x'))
 
     return options_tree, fixed_params
 
@@ -1054,7 +1053,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         power_cost_factor = options['solver']['cost_factor']['power']
         power_cost = power_cost_factor * (1. / scaled_power)  # yes, this = pcf * time_period_estimate
 
-    return lambda_scaling, energy_scaling, power_cost
+    return lambda_scaling, energy_scaling, power_cost, power
 
 
 def estimate_power(options, architecture):
@@ -1185,22 +1184,16 @@ def estimate_energy(options, architecture):
 def estimate_time_period(options, architecture):
 
     windings = float(options['user_options']['trajectory']['lift_mode']['windings'])
-    winding_period = float(options['solver']['initialization']['winding_period'])
-
-    estimate_1 = windings * winding_period
+    cone_angle = float(options['solver']['initialization']['cone_deg'])*np.pi/180.0
+    ground_speed = float(options['solver']['initialization']['groundspeed'])
 
     number_of_kites = architecture.number_of_kites
     if number_of_kites == 1:
-        cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
         length = options['solver']['initialization']['l_t']
     else:
-        cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
         length = options['solver']['initialization']['theta']['l_s']
     radius = length * np.sin(cone_angle)
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
 
-    estimate_2 = (2. * np.pi * windings) / np.sqrt( acc_max / radius)
-
-    time_period = (estimate_1 + estimate_2) / 2.
+    time_period = (2. * np.pi * windings * radius) / ground_speed
 
     return time_period

@@ -93,7 +93,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
-    for variable_type in set(model.variables.keys()) - set(['xdot']):
+    for variable_type in set(model.variables.keys()):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
             var_name, _ = struct_op.split_name_and_node_identifier(name)
@@ -152,6 +152,14 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
     g_bounds = copy.deepcopy(nlp.g_bounds)
 
+    if 'ellipse_half21' in model.constraints_dict['inequality'].keys():
+        g_ub = nlp.g(g_bounds['ub'])
+        switch_kdx = round(nlp.options['n_k'] * nlp.options['phase_fix_reelout'])
+        for k in range(switch_kdx+1, nlp.options['n_k']):
+            g_ub['path', k, 'ellipse_half21'] = 1e5
+            g_ub['path', k, 'ellipse_half31'] = 1e5
+        g_bounds['ub'] = g_ub.cat
+
     # set homotopy parameters
     for name in list(model.parameters_dict['phi'].keys()):
         V_bounds['lb']['phi', name] = 1.
@@ -176,6 +184,13 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
     # set theta parameters
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
+
+    if 'P_max' in model.variables_dict['theta'].keys():
+        if options['cost']['P_max'][0] == 1.0:
+            V_bounds['lb']['theta', 'P_max'] = 1e3
+            V_bounds['ub']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['lb']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['ub']['theta', 'P_max'] = 1e3
 
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
@@ -208,23 +223,26 @@ def generate_default_solver_options(options):
 
     opts = {}
     opts['expand'] = options['expand']
-    opts['ipopt.linear_solver'] = options['linear_solver']
-    opts['ipopt.max_iter'] = options['max_iter']
-    opts['ipopt.max_cpu_time'] = options['max_cpu_time']
 
-    opts['ipopt.mu_target'] = options['mu_target']
-    opts['ipopt.mu_init'] = options['mu_init']
-    opts['ipopt.tol'] = options['tol']
+    if options['nlp_solver'] == 'ipopt':
+        opts['ipopt.linear_solver'] = options['linear_solver']
+        opts['ipopt.max_iter'] = options['max_iter']
+        opts['ipopt.max_cpu_time'] = options['max_cpu_time']
+
+        opts['ipopt.mu_target'] = options['mu_target']
+        opts['ipopt.mu_init'] = options['mu_init']
+        opts['ipopt.tol'] = options['tol']
+        opts['ipopt.ma57_automatic_scaling'] = 'yes'
+
+        if awelogger.logger.getEffectiveLevel() > 10:
+            opts['ipopt.print_level'] = 0
+            opts['print_time'] = 0
+            opts['ipopt.sb'] = 'yes'
+
+        if options['hessian_approximation']:
+            opts['ipopt.hessian_approximation'] = 'limited-memory'
 
     opts['record_time'] = 1
-
-    if awelogger.logger.getEffectiveLevel() > 10:
-        opts['ipopt.print_level'] = 0
-        opts['print_time'] = 0
-        opts['ipopt.sb'] = 'yes'
-
-    if options['hessian_approximation']:
-        opts['ipopt.hessian_approximation'] = 'limited-memory'
 
     opts['jit'] = options['jit']
     if options['jit']:
@@ -239,7 +257,7 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
     middle_opts = generate_default_solver_options(options)
     final_opts = generate_default_solver_options(options)
 
-    if options['hippo_strategy']:
+    if options['nlp_solver'] == 'ipopt':
         initial_opts['ipopt.mu_target'] = options['mu_hippo']
         initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
         initial_opts['ipopt.tol'] = options['tol_hippo']
@@ -248,8 +266,10 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         middle_opts['ipopt.mu_target'] = options['mu_hippo']
         middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
         middle_opts['ipopt.tol'] = options['tol_hippo']
+        middle_opts['ipopt.warm_start_init_point'] = 'yes'
 
         final_opts['ipopt.mu_init'] = options['mu_hippo']
+        final_opts['ipopt.warm_start_init_point'] = 'yes'
 
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
@@ -265,9 +285,14 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         # do whatever it is that depends on lift-mode here....
         32.0
 
-    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    if options['nlp_solver'] == 'ipopt':
+        initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+        middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+        final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    elif options['nlp_solver'] == 'worhp':
+        initial_solver = cas.nlpsol('solver', 'worhp', nlp.get_nlp(), final_opts)
+        middle_solver = initial_solver
+        final_solver = initial_solver
 
     solvers = {}
     solvers['initial'] = initial_solver

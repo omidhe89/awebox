@@ -66,7 +66,8 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     kite_nodes = architecture.kite_nodes
     x = variables['x']
 
-    outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
+    if 'dl_t' in x.keys():
+        outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
     outputs['performance']['elevation'] = get_elevation_angle(variables['x'])
 
     layer_nodes = architecture.layer_nodes
@@ -311,6 +312,9 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
         CD_min = options['model_bounds']['aero_validity']['CD_min']
         drag_lb = CD_min - CD
         outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
+    elif (options['kite_dof'] == 3 and options['kite_type'] == 'soft'):
+        CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
+        CD_min = options['model_bounds']['aero_validity']['CD_min']
 
 
     return outputs
@@ -398,8 +402,10 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
         available_power_at_kites += get_power_density(atmos, wind, height) * s_ref
 
-    current_power = z['lambda10'] * x['l_t'] * x['dl_t']
-
+    if 'l_t' in x.keys():
+        current_power = z['lambda10'] * x['l_t'] * x['dl_t']
+    else:
+        current_power = z['lambda10'] * variables['theta']['l_t']
     node_1_height = x['q10'][2]
     available_power_at_node_1_height = get_power_density(atmos, wind, node_1_height) * s_ref * number_of_kites
 
