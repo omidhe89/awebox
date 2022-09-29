@@ -76,7 +76,7 @@ options['visualization.cosmetics.interpolation.N']  = 250
 trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize(final_homotopy_step='final')
-trial.write_to_csv('./trial_outputs')
+#trial.write_to_csv('./trial_outputs')
 trial.plot(['states', 'controls', 'quad'])
 
 outputs = trial.visualization.plot_dict['outputs']
