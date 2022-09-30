@@ -67,20 +67,20 @@ trial = awe.Trial(options, trial_name)
 trial.build()
 trial.optimize()
 
-# path of outputs
-output_folder='./'+trial_name.lower()+'_outputs'
-if not os.path.exists(output_folder):
-    os.mkdir(output_folder)
-
-# write outputs to CSV
-trial.write_to_csv(output_folder+'/'+trial_name.lower()+'_trial_outputs')
+# # path of outputs
+# output_folder='./'+trial_name.lower()+'_outputs'
+# if not os.path.exists(output_folder):
+#     os.mkdir(output_folder)
+# 
+# # write outputs to CSV
+# trial.write_to_csv(output_folder+'/'+trial_name.lower()+'_trial_outputs')
 
 # draw some of the pre-coded plots for analysis
 var_list = ['states', 'controls', 'constraints','quad']
 trial.plot(var_list)
-for var, i in zip(var_list, plt.get_fignums()):
-    plt.figure(i).savefig(output_folder+'/'+trial_name.lower()+'_plot_'+var+'.png')
-plt.close('all')
+# for var, i in zip(var_list, plt.get_fignums()):
+#     plt.figure(i).savefig(output_folder+'/'+trial_name.lower()+'_plot_'+var+'.png')
+# plt.close('all')
 
 # extract information from the solution for independent plotting or post-processing
 # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
