@@ -201,7 +201,8 @@ def compute_position_indicators(power_and_performance, plot_dict):
     for i in range(dq10[0].shape[0]):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
         q = np.array([q10[0][i], q10[1][i], q10[2][i]])
-        dq10hat += [np.linalg.norm(dq - np.matmul(dq, q / np.linalg.norm(q)) * q / np.linalg.norm(q))]
+        #dq10hat += [np.linalg.norm(dq - np.matmul(dq, q / np.linalg.norm(q)) * q / np.linalg.norm(q))]
+        dq10hat += [np.linalg.norm(dq - np.matmul(dq.T, q / np.linalg.norm(q)) * q / np.linalg.norm(q))]
 
     dq10_av = np.mean(np.array(dq10hat))
     power_and_performance['dq10_av'] = dq10_av
