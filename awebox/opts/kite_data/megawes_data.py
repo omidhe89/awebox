@@ -54,7 +54,7 @@ def geometry():
 
     geometry['m_k'] = 6885.2  # [kg]
 
-    geometry['ar'] = 12.0
+    geometry['ar'] = geometry['b_ref'] / geometry['c_ref'] #12.0
     geometry['j'] = np.array([[5.768e5, 0.0, 0.0],
                               [0.0, 0.8107e5, 0.0],
                               [0.47, 0.0, 6.5002e5]])
