@@ -24,7 +24,7 @@ trial_name = 'megawes_3dof_trajectory' # Name of optimization trial
 N_loops = 1 # Number of loops per power cycle
 N_nlp = 40 # Number of NLP discretization intervals
 ts = 0.1 # MPC sample time (simulation window of each MPC evaluation)
-N_sim = 100 # Number of MPC evaluations
+N_sim = 50 # Number of MPC evaluations
 
 # ____________________________________________________________________
 # trajectory options...
@@ -233,7 +233,8 @@ n = int((len(l)-1)/2)
 l[0].set_color('b')
 ax.get_legend().remove()
 ax.legend([l[-1], l[0]], ['fext', 'ref'], fontsize=14)
-fig.savefig(figname)
+plt.show()
+#fig.savefig(figname)
 
 # # ____________________________________________________________________
 # # Visualize states, controls and forces
