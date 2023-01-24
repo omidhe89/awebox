@@ -100,6 +100,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
         ('params','aero', None,         'moment_factor',   1.0,              ('enhance aerodynamic moment generator by control surfaces', None), 's'),
+        ('model','aero', None,         'fictitious_embedding',   'additive', ('type of fictitious embedding', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
@@ -329,6 +330,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
         ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
+        ('solver',  None,   None,   'max_iter_hippo',       2000,       ('max iter for hippo strategy [int]', None),'x'),
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', None), 't'),
