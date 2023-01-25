@@ -8,9 +8,8 @@ import awebox as awe
 import casadi as ca
 import copy
 import matplotlib.pyplot as plt
-
-from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
+#from awebox.logger.logger import Logger as awelogger
+#awelogger.logger.setLevel('DEBUG')
 
 # single kite with point-mass model
 options = {}
@@ -40,7 +39,6 @@ trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize()
 trial.plot(['isometric'])
-plt.show()
 
 # set-up closed-loop simulation
 N_mpc = 10 # MPC horizon

@@ -8,7 +8,7 @@ G. Licitra, J. Koenemann, A. Bürger, P. Williams, R. Ruiterkamp, M. Diehl
 Energy, Vol.173, pp. 569-585, 2019.
 
 :author: Jochem De Schutter
-:edited: Rachel Leuthold
+:edited: Rachel Leuthold, Thomas Haas
 """
 
 import awebox as awe
@@ -47,54 +47,55 @@ trial = awe.Trial(options, 'Ampyx_AP2')
 trial.build()
 trial.optimize()
 
-# draw some of the pre-coded plots for analysis
-trial.plot(['states', 'controls', 'constraints','quad'])
-
 # extract information from the solution for independent plotting or post-processing
 # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
 plot_dict = trial.visualization.plot_dict
 outputs = plot_dict['outputs']
 time = plot_dict['time_grids']['ip']
 avg_power = plot_dict['power_and_performance']['avg_power']/1e3
-
 print('======================================')
 print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
-plt.subplots(5, 1, sharex=True)
-plt.subplot(511)
-plt.plot(time, plot_dict['x']['l_t'][0], label = 'Tether Length')
-plt.ylabel('[m]')
-plt.legend()
-plt.grid(True)
-
-plt.subplot(512)
-plt.plot(time, plot_dict['x']['dl_t'][0], label = 'Tether Reel-out Speed')
-plt.ylabel('[m/s]')
-plt.legend()
-plt.hlines([20, -15], time[0], time[-1], linestyle='--', color = 'black')
-plt.grid(True)
-
-plt.subplot(513)
-plt.plot(time, outputs['aerodynamics']['airspeed1'][0], label = 'Airspeed')
-plt.ylabel('[m/s]')
-plt.legend()
-plt.hlines([10, 32], time[0], time[-1], linestyle='--', color = 'black')
-plt.grid(True)
-
-plt.subplot(514)
-plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['alpha1'][0], label = 'Angle of Attack')
-plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['beta1'][0], label = 'Side-Slip Angle')
-plt.ylabel('[deg]')
-plt.legend()
-plt.hlines([9, -6], time[0], time[-1], linestyle='--', color = 'black')
-plt.grid(True)
-
-plt.subplot(515)
-plt.plot(time, outputs['local_performance']['tether_force10'][0], label = 'Tether Force Magnitude')
-plt.ylabel('[kN]')
-plt.xlabel('t [s]')
-plt.legend()
-plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color = 'black')
-plt.grid(True)
+# draw some of the pre-coded plots for analysis
+trial.plot(['isometric']) #trial.plot(['states', 'controls', 'constraints','quad'])
 plt.show()
+
+# # draw additional plots 
+# plt.subplots(5, 1, sharex=True)
+# plt.subplot(511)
+# plt.plot(time, plot_dict['x']['l_t'][0], label = 'Tether Length')
+# plt.ylabel('[m]')
+# plt.legend()
+# plt.grid(True)
+# 
+# plt.subplot(512)
+# plt.plot(time, plot_dict['x']['dl_t'][0], label = 'Tether Reel-out Speed')
+# plt.ylabel('[m/s]')
+# plt.legend()
+# plt.hlines([20, -15], time[0], time[-1], linestyle='--', color = 'black')
+# plt.grid(True)
+# 
+# plt.subplot(513)
+# plt.plot(time, outputs['aerodynamics']['airspeed1'][0], label = 'Airspeed')
+# plt.ylabel('[m/s]')
+# plt.legend()
+# plt.hlines([10, 32], time[0], time[-1], linestyle='--', color = 'black')
+# plt.grid(True)
+# 
+# plt.subplot(514)
+# plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['alpha1'][0], label = 'Angle of Attack')
+# plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['beta1'][0], label = 'Side-Slip Angle')
+# plt.ylabel('[deg]')
+# plt.legend()
+# plt.hlines([9, -6], time[0], time[-1], linestyle='--', color = 'black')
+# plt.grid(True)
+# 
+# plt.subplot(515)
+# plt.plot(time, outputs['local_performance']['tether_force10'][0], label = 'Tether Force Magnitude')
+# plt.ylabel('[kN]')
+# plt.xlabel('t [s]')
+# plt.legend()
+# plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color = 'black')
+# plt.grid(True)
+# plt.show()
