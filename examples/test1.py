@@ -51,13 +51,11 @@ N_step = 40 # Number of MPC evaluations in built-in/F_ext simulations
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options = set_ampyx_ap2_settings(options)
-options['model.tether.control_var'] = 'ddl_t'
 
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
-options['model.system_bounds.theta.t_f'] =  [1.0, 35.0]
 
 # wind model
 options['params.wind.z_ref'] = 100.0
@@ -66,7 +64,7 @@ options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
 # NLP discretization
-options['nlp.n_k'] = 60
+options['nlp.n_k'] = 40
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57'
@@ -82,13 +80,36 @@ archi = awe.mdl.architecture.Architecture(trial_opts['user_options']['system_mod
 trial = awe.Trial(options, trial_name)
 trial.build()
 trial.optimize()
-#trial.plot(['isometric', 'states'])
-#plt.show()
+trial.plot(['isometric', 'states'])
+plt.show()
 
 # ____________________________________________________________________
 # built-in closed-loop simulation with default options
-closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', 0.1, trial.options_seed)
-closed_loop_sim.run(350)
+ts = 0.1
+N_sim = 40
+
+options['mpc.scheme'] = 'radau'
+options['mpc.d'] = 4
+options['mpc.jit'] = False
+options['mpc.cost_type'] = 'tracking'
+options['mpc.expand'] = True
+options['mpc.linear_solver'] = 'ma57'
+options['mpc.max_iter'] = 1000
+options['mpc.max_cpu_time'] = 2000
+options['mpc.N'] = N_mpc
+options['mpc.plot_flag'] = False
+options['mpc.ref_interpolator'] = 'spline'
+options['mpc.u_param'] = 'zoh'
+options['mpc.homotopy_warmstart'] = True
+options['mpc.terminal_point_constr'] = False
+
+# simulation options
+options['sim.number_of_finite_elements'] = 20 # integrator steps within one sampling time
+options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
+
+closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, options)
+closed_loop_sim.run(N_sim)
+
 
 closed_loop_sim.plot('isometric')
 fig = plt.gcf()
