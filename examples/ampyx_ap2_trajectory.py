@@ -37,7 +37,7 @@ options['user_options.wind.u_ref'] = 10.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['nlp.n_k'] = 40
+options['nlp.n_k'] = 60
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
@@ -57,9 +57,17 @@ print('======================================')
 print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
-# draw some of the pre-coded plots for analysis
-trial.plot(['isometric', 'states']) #trial.plot(['states', 'controls', 'constraints','quad'])
-plt.show()
+# plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
+trial.plot(['isometric'])
+fig = plt.gcf()
+fig.set_size_inches(10, 8)
+ax = fig.get_axes()[0]
+l = ax.get_lines()
+l[0].set_color('b')
+ax.get_legend().remove()
+ax.legend([l[0]], ['ref'], fontsize=14)
+figname = './ampyx_ap2_trajectory_isometric.png'
+fig.savefig(figname)
 
 # # draw additional plots 
 # plt.subplots(5, 1, sharex=True)

@@ -9,6 +9,7 @@ dist/
 
 # Figures
 figures/
+*.png
 *.jpg
 *.eps
 
