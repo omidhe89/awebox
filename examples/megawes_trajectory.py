@@ -32,18 +32,18 @@ options = set_megawes_settings(options)
 # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 1
+options['user_options.trajectory.lift_mode.windings'] = 5
+options['model.system_bounds.theta.t_f'] = [10.0, 80.0] # additional constraints limiting path period
 
 # indicate desired environment
 # here: wind velocity profile according to power-law
-options['params.wind.z_ref'] = 100.0
-options['params.wind.power_wind.exp_ref'] = 0.15
-options['user_options.wind.model'] = 'power'
-options['user_options.wind.u_ref'] = 10.
+options['params.wind.z_ref'] = 10.0
+options['user_options.wind.model'] = 'log_wind'
+options['user_options.wind.u_ref'] = 5.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['nlp.n_k'] = 20
+options['nlp.n_k'] = 120
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
@@ -63,45 +63,14 @@ print('======================================')
 print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
-# draw some of the pre-coded plots for analysis
-trial.plot(['isometric']) #trial.plot(['states', 'controls', 'constraints','quad'])
-plt.show()
-
-# # draw additional plots 
-# plt.subplots(5, 1, sharex=True)
-# plt.subplot(511)
-# plt.plot(time, plot_dict['x']['l_t'][0], label = 'Tether Length')
-# plt.ylabel('[m]')
-# plt.legend()
-# plt.grid(True)
-# 
-# plt.subplot(512)
-# plt.plot(time, plot_dict['x']['dl_t'][0], label = 'Tether Reel-out Speed')
-# plt.ylabel('[m/s]')
-# plt.legend()
-# plt.hlines([20, -15], time[0], time[-1], linestyle='--', color = 'black')
-# plt.grid(True)
-# 
-# plt.subplot(513)
-# plt.plot(time, outputs['aerodynamics']['airspeed1'][0], label = 'Airspeed')
-# plt.ylabel('[m/s]')
-# plt.legend()
-# plt.hlines([10, 32], time[0], time[-1], linestyle='--', color = 'black')
-# plt.grid(True)
-# 
-# plt.subplot(514)
-# plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['alpha1'][0], label = 'Angle of Attack')
-# plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['beta1'][0], label = 'Side-Slip Angle')
-# plt.ylabel('[deg]')
-# plt.legend()
-# plt.hlines([9, -6], time[0], time[-1], linestyle='--', color = 'black')
-# plt.grid(True)
-# 
-# plt.subplot(515)
-# plt.plot(time, outputs['local_performance']['tether_force10'][0], label = 'Tether Force Magnitude')
-# plt.ylabel('[kN]')
-# plt.xlabel('t [s]')
-# plt.legend()
-# plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color = 'black')
-# plt.grid(True)
-# plt.show()
+# plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
+trial.plot(['isometric'])
+fig = plt.gcf()
+fig.set_size_inches(10, 8)
+ax = fig.get_axes()[0]
+l = ax.get_lines()
+l[0].set_color('b')
+ax.get_legend().remove()
+ax.legend([l[0]], ['ref'], fontsize=14)
+figname = './megawes_trajectory_isometric.png'
+fig.savefig(figname)
