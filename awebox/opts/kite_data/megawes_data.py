@@ -105,6 +105,10 @@ def battery_model_parameters(coeff_max, coeff_min):
 def aero():
     # commented values are not currently supported, future implementation
 
+    # MegAWES data:
+    # AVL analysis by Joland Wauters and Niels Pynaert
+
+    # AP2 Data:
     # A reference model for airborne wind energy systems for optimization and control
     # Article
     # March 2019 Renewable Energy
@@ -113,125 +117,104 @@ def aero():
     # commented values are not currently supported, future implementation
 
     stab_derivs = {}
-
     stab_derivs['frame'] = {}
     stab_derivs['frame']['force'] = 'control'
     stab_derivs['frame']['moment'] = 'control'
 
+    # Force coefficients (megAWES)
     stab_derivs['CX'] = {}
-    stab_derivs['CX']['0'] = [-0.0293]
-    stab_derivs['CX']['alpha'] = [0.4784, 2.5549]
-    stab_derivs['CX']['q'] = [-0.6029, 4.4124]
-    # stab_derivs['CX']['alpha_q'] = [4.4124]
-    stab_derivs['CX']['deltae'] = [-0.0106, 0.1115]
-    # stab_derivs['CX']['alpha_deltae'] = [0.1115]
-
+    stab_derivs['CX']['0'] = [-0.054978] #1
+    stab_derivs['CX']['alpha'] = [0.95827, 5.6521] #alpha,alpha2
+    stab_derivs['CX']['q'] = [1.2982, 26.4527,1.8875    ]   #1,alpha,alpha2     
+    stab_derivs['CX']['deltae'] = [-0.031786,0.2491,0.076416] #1,alpha,alpha2   
+    
     stab_derivs['CY'] = {}
-    stab_derivs['CY']['beta'] = [-0.1855, -0.0299, 0.0936]
-    # stab_derivs['CY']['alpha_beta'] = [-0.0299]
-    # stab_derivs['CY']['alpha2_beta'] = [0.0936]
-    stab_derivs['CY']['p'] = [-0.1022, -0.0140, 0.0496]
-    # stab_derivs['CY']['alpha_p'] = [-0.0140]
-    # stab_derivs['CY']['alpha2_p'] = [0.0496]
-    stab_derivs['CY']['r'] = [0.1694, 0.1368]
-    # stab_derivs['CY']['alpha_r'] = [0.1368]
-    stab_derivs['CY']['deltaa'] = [-0.0514, -0.0024, 0.0579]
-    # stab_derivs['CY']['alpha_deltaa'] = [-0.0024]
-    # stab_derivs['CY']['alpha2_deltaa'] = [0.0579]
-    stab_derivs['CY']['deltar'] = [0.10325, 0.0268, -0.1036]
-    # stab_derivs['CY']['alpha_deltar'] = [0.0268]
-    # stab_derivs['CY']['alpha2_deltar'] = [-0.1036]
-
+    stab_derivs['CY']['beta'] = [-0.25065, -0.077264,-0.25836   ] #1,alpha,alpha2   
+    stab_derivs['CY']['p'] = [-0.11406, -0.52471    , 0.029861  ]
+    stab_derivs['CY']['r'] = [0.13396, 0.041562, -0.012874   ]
+    stab_derivs['CY']['deltae'] = [-0.0072147, 0.034068 , 0.0032198 ]
+    stab_derivs['CY']['deltar'] = [0.22266, 0.0099775, -0.21563 ]
+    
     stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['0'] = [-0.5526]
-    stab_derivs['CZ']['alpha'] = [-5.0676, 5.7736]
-    stab_derivs['CZ']['q'] = [-7.5560, 0.1251, 6.1486]
-    # stab_derivs['CZ']['alpha_q'] = [0.1251]
-    # stab_derivs['CZ']['alpha2_q'] = [6.1486]
-    stab_derivs['CZ']['deltae'] = [-0.315, -0.0013, 0.2923]
-    # stab_derivs['CZ']['alpha_deltae'] = [-0.0013]
-    # stab_derivs['CZ']['alpha2_deltae'] = [0.2923]
+    stab_derivs['CZ']['0'] = [-1.2669]
+    stab_derivs['CZ']['alpha'] = [-6.3358, 0.17935] #alpha,alpha2
+    stab_derivs['CZ']['q'] = [-21.1507, -1.3285 , 7.3174]
+    stab_derivs['CZ']['deltae'] = [-0.56729, -0.0090401, 0.53686    ]
 
-    #
-    # # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
-    # stab_derivs['CL'] = {}
-    # stab_derivs['CL']['0'] = [0.5284]
-    # stab_derivs['CL']['alpha'] = [4.6306]
-    # stab_derivs['CL']['q'] = [-0.6029]
-    # stab_derivs['CL']['deltae'] = [0.1]
-    #
-    # stab_derivs['CS'] = {}
-    # stab_derivs['CS']['0'] = [0.]
-    # stab_derivs['CS']['beta'] = [-0.217]
-    # stab_derivs['CS']['deltar'] = [0.113]
-    #
-    # stab_derivs['CD'] = {}
-    # stab_derivs['CD']['0'] = [0.0273]
-    # stab_derivs['CD']['alpha'] = [0.0965, 1.2697]
-    # stab_derivs['CD']['beta'] = [0., -0.16247]
-    # stab_derivs['CD']['deltae'] = [4.52856e-5, 4.19816e-5]
-    # stab_derivs['CD']['deltaa'] = [0., 5.60583e-5]
-    # stab_derivs['CD']['deltar'] = [0., 2.03105e-5]
-    # # stab_derivs['CD']['alpha_deltae'] = [-9.79647e-5]
-    # # stab_derivs['CD']['beta_deltaa'] = [-6.73139e-6]
-    # # stab_derivs['CD']['beta_deltar'] = [5.55453e-5]
-
-
-    # A reference model for airborne wind energy systems for optimization and control
-    # Article
-    # March 2019 Renewable Energy
-    # Elena Malz Jonas Koenemann S. Sieberling Sebastien Gros
-
-
+    # Moment coefficients (megAWES)
     stab_derivs['Cl'] = {}
-    stab_derivs['Cl']['beta'] = [-0.0630, -0.0003, 0.0312]
-    # stab_derivs['Cl']['alpha_beta'] = [-0.0003]
-    # stab_derivs['Cl']['alpha2_beta'] = [0.0312]
-    stab_derivs['Cl']['p'] = [-0.5632, -0.0247, 0.2813]
-    # stab_derivs['Cl']['alpha_p'] = [-0.0247]
-    # stab_derivs['Cl']['alpha2_p'] = [0.2813]
-    stab_derivs['Cl']['r'] = [0.1811, 0.6448]
-    # stab_derivs['Cl']['alpha_r'] = [0.6448]
-    stab_derivs['Cl']['deltaa'] = [-0.2489, -0.0087, 0.2383]
-    # stab_derivs['Cl']['alpha_deltaa'] = [-0.0087]
-    # stab_derivs['Cl']['alpha2_deltaa'] = [0.2383]
-    stab_derivs['Cl']['deltar'] = [0.00436, -0.0013]
-    # stab_derivs['Cl']['alpha_deltar'] = [-0.0013]
+    stab_derivs['Cl']['beta'] = [0.033447,0.29221,-0.008944]
+    stab_derivs['Cl']['p'] = [-0.62105, -0.013963,0.19592   ]
+    stab_derivs['Cl']['r'] = [0.29636, 0.79049,-0.095935 ]
+    stab_derivs['Cl']['deltaa'] = [-0.22285, 0.072142, 0.20538]
+    stab_derivs['Cl']['deltar'] = [0,0,0]
 
     stab_derivs['Cm'] = {}
-    stab_derivs['Cm']['0'] = [-0.0307]
-    stab_derivs['Cm']['alpha'] = [-0.6027]
-    stab_derivs['Cm']['q'] = [-11.3022, -0.0026, 5.2885]
-    # stab_derivs['Cm']['alpha_q'] = [-0.0026]
-    # stab_derivs['Cm']['alpha2_q'] = [5.2885]
-    stab_derivs['Cm']['deltae'] = [-1.0427, -0.0061, 0.9974]
-    # stab_derivs['Cm']['alpha_deltae'] = [-0.0061]
-    # stab_derivs['Cm']['alpha2_deltae'] = [0.9974]
+    stab_derivs['Cm']['0'] = [-1.2205]
+    stab_derivs['Cm']['alpha'] = [-6.1371, 0.524]
+    stab_derivs['Cm']['q'] = [-30.5633, 0.21383, 12.3625    ]
+    stab_derivs['Cm']['deltae'] = [-2.0023, -0.017046, 1.9176]
 
     stab_derivs['Cn'] = {}
-    stab_derivs['Cn']['beta'] = [0.0577, -0.0849]
-    # stab_derivs['Cn']['alpha_beta'] = [-0.0849]
-    stab_derivs['Cn']['p'] = [-0.0565, -0.9137]
-    # stab_derivs['Cn']['alpha_p'] = [-0.9137]
-    stab_derivs['Cn']['r'] = [-0.0553, 0.0290, 0.0257]
-    # stab_derivs['Cn']['alpha_r'] = [0.0290]
-    # stab_derivs['Cn']['alpha2_r'] = [0.0257]
-    stab_derivs['Cn']['deltaa'] = [0.01903, -0.1147]
-    # stab_derivs['Cn']['alpha_deltaa'] = [-0.1147]
-    stab_derivs['Cn']['deltar'] = [-0.0404, -0.0117, 0.04089]
-    # stab_derivs['Cn']['alpha_deltar'] = [-0.0117]
-    # stab_derivs['Cn']['alpha2_deltar'] = [0.04089]
+    stab_derivs['Cn']['beta'] = [0.063003, 0.0083813, -0.010153]
+    stab_derivs['Cn']['p'] = [-0.10928, -1.108, -0.014484]
+    stab_derivs['Cn']['r'] = [-0.06083,0.026555 , -0.11595]
+    stab_derivs['Cn']['deltaa'] = [0.0061295, -0.083852,  0.0013827]
+    stab_derivs['Cn']['deltar'] = [-0.067283, -0.0017035    , 0.065006]
 
+    # Aero validity (megAWES)
     aero_validity = {}
-    # aero_validity['alpha_max_deg'] = 21.7724
-    # aero_validity['alpha_min_deg'] = -7.4485
-    # aero_validity['beta_max_deg'] = 15.
-    # aero_validity['beta_min_deg'] = -15.0
-
     aero_validity['alpha_max_deg'] = 4.2
     aero_validity['alpha_min_deg'] = -14.
     aero_validity['beta_max_deg'] = 20.
     aero_validity['beta_min_deg'] = -20.
 
+    # # Force coefficients (AP2)
+    # stab_derivs['CX'] = {}
+    # stab_derivs['CX']['0'] = [-0.0293]
+    # stab_derivs['CX']['alpha'] = [0.4784, 2.5549]
+    # stab_derivs['CX']['q'] = [-0.6029, 4.4124]
+    # stab_derivs['CX']['deltae'] = [-0.0106, 0.1115]
+
+    # stab_derivs['CY'] = {}
+    # stab_derivs['CY']['beta'] = [-0.1855, -0.0299, 0.0936]
+    # stab_derivs['CY']['p'] = [-0.1022, -0.0140, 0.0496]
+    # stab_derivs['CY']['r'] = [0.1694, 0.1368]
+    # stab_derivs['CY']['deltaa'] = [-0.0514, -0.0024, 0.0579]
+    # stab_derivs['CY']['deltar'] = [0.10325, 0.0268, -0.1036]
+
+    # stab_derivs['CZ'] = {}
+    # stab_derivs['CZ']['0'] = [-0.5526]
+    # stab_derivs['CZ']['alpha'] = [-5.0676, 5.7736]
+    # stab_derivs['CZ']['q'] = [-7.5560, 0.1251, 6.1486]
+    # stab_derivs['CZ']['deltae'] = [-0.315, -0.0013, 0.2923]
+
+    # # Moment coefficients (AP2)
+    # stab_derivs['Cl'] = {}
+    # stab_derivs['Cl']['beta'] = [-0.0630, -0.0003, 0.0312]
+    # stab_derivs['Cl']['p'] = [-0.5632, -0.0247, 0.2813]
+    # stab_derivs['Cl']['r'] = [0.1811, 0.6448]
+    # stab_derivs['Cl']['deltaa'] = [-0.2489, -0.0087, 0.2383]
+    # stab_derivs['Cl']['deltar'] = [0.00436, -0.0013]
+
+    # stab_derivs['Cm'] = {}
+    # stab_derivs['Cm']['0'] = [-0.0307]
+    # stab_derivs['Cm']['alpha'] = [-0.6027]
+    # stab_derivs['Cm']['q'] = [-11.3022, -0.0026, 5.2885]
+    # stab_derivs['Cm']['deltae'] = [-1.0427, -0.0061, 0.9974]
+
+    # stab_derivs['Cn'] = {}
+    # stab_derivs['Cn']['beta'] = [0.0577, -0.0849]
+    # stab_derivs['Cn']['p'] = [-0.0565, -0.9137]
+    # stab_derivs['Cn']['r'] = [-0.0553, 0.0290, 0.0257]
+    # stab_derivs['Cn']['deltaa'] = [0.01903, -0.1147]
+    # stab_derivs['Cn']['deltar'] = [-0.0404, -0.0117, 0.04089]
+
+    # # Aero validity (AP2)
+    # aero_validity = {}
+    # aero_validity['alpha_max_deg'] = 21.7724
+    # aero_validity['alpha_min_deg'] = -7.4485
+    # aero_validity['beta_max_deg'] = 15.
+    # aero_validity['beta_min_deg'] = -15.0
 
     return stab_derivs, aero_validity
