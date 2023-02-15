@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Circular pumping trajectory for the 6DOF megAWES reference rigid-wing aircraft.
+Closed-loop MPC simulation of circular pumping trajectory for the Ampyx AP2 aircraft.
 Model and constraints as in:
 
 "Performance assessment of a rigid wing Airborne Wind Energy pumping system",
@@ -15,15 +15,23 @@ Renewable Energy, Vol.196, pp. 137-150, 2022.
 
 :author: Jochem De Schutter
 :edited: Thomas Haas
+
+User settings
+N_nlp: Number of NLP discretization intervals of the reference flight path  
+N_mpc: Number of NLP intervals in the tracking window (MPC horizon)
+N_sim: Number of MPC evaluations in closed-loop simulations
+N_dt:  Number of built-in integrator steps within one MPC sampling time
+t_s:   Sampling time of the MPC controller
 """
 
 import awebox as awe
 from megawes_settings import set_megawes_settings
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 # indicate desired system architecture
-# here: single kite with 6DOF megAWES aircraft
+# here: single kite with 6DOF MegAWES model
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options = set_megawes_settings(options)
@@ -43,7 +51,8 @@ options['user_options.wind.u_ref'] = 5.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['nlp.n_k'] = 60
+N_nlp = 60
+options['nlp.n_k'] = N_nlp
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
@@ -53,26 +62,59 @@ trial = awe.Trial(options, 'megAWES')
 trial.build()
 trial.optimize()
 
-# extract information from the solution for independent plotting or post-processing
-# here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
-plot_dict = trial.visualization.plot_dict
-outputs = plot_dict['outputs']
-time = plot_dict['time_grids']['ip']
-avg_power = plot_dict['power_and_performance']['avg_power']/1e3
-print('======================================')
-print('Average power: {} kW'.format(avg_power))
-print('======================================')
+# # draw some of the pre-coded plots for analysis
+# trial.plot(['states', 'controls', 'constraints','quad'])
+# plt.show()
 
-# plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
+# set-up closed-loop simulation
+N_mpc = 10  # MPC horizon
+N_sim = 250 # Closed-loop simulation steps
+N_dt = 20   # Built-in integrator steps within one sampling time
+t_s = 0.1   # MPC sampling time
+
+# MPC options
+options['mpc.scheme'] = 'radau'
+options['mpc.d'] = 4
+options['mpc.jit'] = False
+options['mpc.cost_type'] = 'tracking'
+options['mpc.expand'] = True
+options['mpc.linear_solver'] = 'ma57'
+options['mpc.max_iter'] = 1000
+options['mpc.max_cpu_time'] = 2000
+options['mpc.N'] = N_mpc
+options['mpc.plot_flag'] = False
+options['mpc.ref_interpolator'] = 'spline'
+options['mpc.u_param'] = 'zoh'
+options['mpc.homotopy_warmstart'] = True
+options['mpc.terminal_point_constr'] = False
+
+# simulation options
+options['sim.number_of_finite_elements'] = N_sim 
+options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
+
+# reduce average wind speed
+options['sim.sys_params']['wind']['u_ref'] = 1.0*options['sim.sys_params']['wind']['u_ref']
+
+# make simulator
+closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', t_s, options)
+closed_loop_sim.run(N_sim)
+
+# Plot 3D path
 trial.plot(['isometric'])
 fig = plt.gcf()
 fig.set_size_inches(10, 8)
 ax = fig.get_axes()[0]
 l = ax.get_lines()
 l[0].set_color('b')
-ax.get_legend().remove()
-ax.legend([l[0]], ['ref'], fontsize=14)
-figname = './megawes_trajectory_isometric.png'
-fig.savefig(figname)
-plt.show()
 
+# add built-in MPC simulation
+x_mpc = np.array(closed_loop_sim.visualization.plot_dict['x']['q10']).T
+ax.plot(x_mpc[:,0], x_mpc[:,1], x_mpc[:,2])
+l = ax.get_lines()
+l[-1].set_color('r')
+
+# layout/save
+ax.get_legend().remove()
+ax.legend([l[-1], l[0]], ['mpc', 'ref'], fontsize=14)
+figname = './megawes_closed_loop_isometric.png'
+fig.savefig(figname)
