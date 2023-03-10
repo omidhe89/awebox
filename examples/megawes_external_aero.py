@@ -59,13 +59,14 @@ options = set_megawes_settings(options)
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
-options['model.system_bounds.theta.t_f'] = [10.0, 80.0] # additional constraints limiting path period
+#options['model.system_bounds.theta.t_f'] = [10.0, 80.0] # additional constraints limiting path period
 
 # indicate desired environment
-# here: wind velocity profile according to power-law
-options['params.wind.z_ref'] = 10.0
-options['user_options.wind.model'] = 'log_wind'
-options['user_options.wind.u_ref'] = 5.
+# here: uniform wind velocity profile
+options['params.wind.z_ref'] = 100.0
+options['params.wind.power_wind.exp_ref'] = 0.15
+options['user_options.wind.model'] = 'uniform'
+options['user_options.wind.u_ref'] = 10.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. 
@@ -87,7 +88,7 @@ trial.optimize()
 
 # closed-loop MPC simulation options
 N_mpc = 10
-N_sim = 250
+N_sim = 200
 N_dt = 20 
 t_s = 0.1
 
