@@ -51,6 +51,7 @@ def set_default_user_options():
         ('user_options',    'trajectory',  'tracking',  'fix_tether_length',     False,              ('fixing tether length for the trajectory', [True, False]),'s'),
         ('user_options',    'trajectory',  None,        'fixed_params',          {},                 ('give dict of fixed system parameters and their values',None),'s'),
         ('user_options',    'system_model',None,        'kite_dof',              6,                  ('give the number of states that designate each kites position [int]: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'t'),
+        ('user_options',    'system_model',None,        'kite_type',             'rigid',            ('kite type',['rigid','soft']),'t'),
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
         ('user_options',    'system_model',None,        'architecture',          {1:0, 2:1, 3:1},    ('choose tuple (layers,siblings)', None),'t'),
         ('user_options',    'system_model',None,        'cross_tether',          False,              ('enable cross_tether', [True, False]),'t'),
@@ -135,6 +136,7 @@ def set_default_options(default_user_options, help_options):
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 's_ref',       None,     ('geometrical parameter', None),'s'),
+        ('model',  'geometry', 'overwrite', 's_ref_side',  None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'b_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'c_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'ar',          None,     ('geometrical parameter', None),'s'),
@@ -198,7 +200,9 @@ def set_default_options(default_user_options, help_options):
 
         ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
         ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
-
+        ('model',  'system_bounds', 'x',          'pitch',        [0.0, 30.0*np.pi/180.0],                                                       ('soft kit pitch bounds', None),'x'),
+        ('model',  'system_bounds', 'u',          'dpitch',       [-1.5, 1.5],                                                                   ('soft kit pitch rate bounds', None),'x'),
+        ('model',  'system_bounds', 'u',          'dyaw',         [-1.5, 1.5],                                                                     ('soft kit yaw rate bounds', None),'x'),
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
         ('model',   'model_bounds', 'tether_stress', 'include',              True,      ('include tether stress inequality in constraints', [True, False]),'x'),
@@ -229,7 +233,10 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
-
+        ('model',  'scaling', 'x',     'yaw',      1.,     ('soft kit yaw scaling [rad]', None),'x'),
+        ('model',  'scaling', 'x',     'dyaw',     1.,     ('soft kit yaw rate  scaling [rad/s]', None),'x'),
+        ('model',  'scaling', 'x',     'pitch',    1.,     ('soft kit pitch scaling [rad]', None),'x'),
+        ('model',  'scaling', 'x',     'dpitch',   1.,     ('soft kit pitch rate  scaling [rad/s]', None),'x'),
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),

@@ -102,6 +102,7 @@ class Model(object):
         integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
 
         self.__kite_dof = options['kite_dof']
+        #self.__kite_type = options['kite_type']
         self.__kite_geometry = {} #options['geometry']
 
         self.__variables = variables
@@ -163,6 +164,7 @@ class Model(object):
         awelogger.logger.info('Wind model'+13*'.'+': {}'.format(self.__options['wind']['model']))
         awelogger.logger.info('Induction model'+8*'.'+': {}'.format(self.__options['induction_model']))
         awelogger.logger.info('System type'+12*'.'+': {}'.format(self.__options['trajectory']['system_type']))
+        awelogger.logger.info('Kite type'+13*'.' + ': {}'.format(self.__options['kite_type']))
         awelogger.logger.info('Aircraft DOF'+11*'.'+': {}'.format(self.__options['kite_dof']))
         awelogger.logger.info('Number of aircraft'+5*'.'+': {}'.format(self.__architecture.number_of_kites))
         awelogger.logger.info('Number of layers'+7*'.'+': {}'.format(self.__architecture.layers))
