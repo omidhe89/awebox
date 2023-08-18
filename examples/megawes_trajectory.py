@@ -32,7 +32,7 @@ options = set_megawes_settings(options)
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # constant (or null) reel-out during power generation. Option 'simple' allows reel-in during power generation
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 1e3] # cycle period [s]
 
