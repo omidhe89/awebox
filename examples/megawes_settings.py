@@ -5,63 +5,68 @@ import casadi as ca
 
 def set_megawes_settings(options):
 
+
+    # --------------------------- Default aircraft/tether settings --------------------------- #
     # 6DOF megAWES model
     options['user_options.system_model.kite_dof'] = 6
     options['user_options.kite_standard'] = awe.megawes_data.data_dict()
 
-    # tether parameters
+    # tether parameters (incl. tether drag model)
     options['params.tether.cd'] = 1.2
     diam_t = 0.0297
     options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
     options['model.tether.use_wound_tether'] = False # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
-
-    # tether drag model (more accurate than the Argatov model in Licitra2019)
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
 
-    # don't model generator
-    options['model.model_bounds.wound_tether_length.include'] = False
+    # --------------------------- State bounds --------------------------- #
+    # state variables bounds
+    omega_bound = 50*np.pi/180.0 
+    delta_bound = 20*np.pi/180.0 
+    options['model.system_bounds.x.q'] =  [np.array([0.0, -278.75, 85.0]), np.array([1000.0, 278.75, 600.0])] # Spatial footprint [m]
+    options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])] # Angular rates [deg/s]
+    options['user_options.kite_standard.geometry.delta_max'] = np.array(3*[delta_bound]) # Surface deflections [deg]
+    options['model.system_bounds.x.l_t'] =  [10.0, 1e3] # Tether length [m]
+    options['model.system_bounds.x.dl_t'] =   [-30.0, 30.0] # Tether speed [m/s]
 
-    # tether force limit
-    options['model.model_bounds.tether_stress.include'] = False
-    options['model.model_bounds.tether_force.include'] = True
-    options['params.model_bounds.tether_force_limits'] = np.array([50, 1.7e6]) #[Eijkelhof2022]
+    # --------------------------- Control bounds --------------------------- #
+    # control variable bounds
+    ddelta_bound = 5*np.pi/180.0 
+    options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[ddelta_bound]) # Deflection rates [deg/s]
+    options['model.ground_station.ddl_t_max'] = 10. # Tether acceleration [m/s^2]
 
-    # flight envelope
-    options['model.model_bounds.airspeed.include'] = True
-    options['params.model_bounds.airspeed_limits'] = np.array([10., 120.]) 
+    # --------------------------- Operational constraints --------------------------- #
+    # validitiy of aerodynamic model
     options['model.model_bounds.aero_validity.include'] = True
     options['user_options.kite_standard.aero_validity.beta_max_deg'] = 10.0
     options['user_options.kite_standard.aero_validity.beta_min_deg'] = -10.0
     options['user_options.kite_standard.aero_validity.alpha_max_deg'] = 4.2
     options['user_options.kite_standard.aero_validity.alpha_min_deg'] = -14.5
 
+    # airspeed limitation
+    options['model.model_bounds.airspeed.include'] = True
+    options['params.model_bounds.airspeed_limits'] = np.array([10., 120.]) 
+
+    # tether force limit
+    options['model.model_bounds.tether_stress.include'] = False
+    options['model.model_bounds.tether_force.include'] = True
+    options['params.model_bounds.tether_force_limits'] = np.array([50, 1.7e6]) #[Eijkelhof2022]
+
     # acceleration constraint
     options['model.model_bounds.acceleration.include'] = True 
     options['model.model_bounds.acceleration.acc_max'] = 3. #[g]
 
-    # aircraft-tether anticollision
+    # constrained roll, pitch, yaw angles 
     options['model.model_bounds.rotation.include'] = True
     options['model.model_bounds.rotation.type'] = 'yaw'
-    options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 70.0*np.pi/180.0])
+    options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 70.0*np.pi/180.0]) # default: 80, 80, 160
 
-    # variable bounds
-    options['model.system_bounds.x.l_t'] =  [10.0, 10e3] # [m]
-    options['model.system_bounds.x.dl_t'] =   [-30.0, 30.0] # [m/s]
-    options['model.ground_station.ddl_t_max'] = 10. # (2.4) [m/s^2]
-    options['model.system_bounds.x.q'] =  [np.array([-ca.inf, -265.5, 40]), np.array([ca.inf, 265.5, ca.inf])] #operation area: limited in y to have a more circular pattern
-    options['model.system_bounds.theta.t_f'] =  [1.0, 1e3] # [s]
-    options['model.system_bounds.z.lambda'] =  [0., ca.inf] # [N/m]
-    omega_bound =  50*np.pi/180.0 
-    options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])]
-    options['user_options.kite_standard.geometry.delta_max'] = np.array([20., 20., 20.]) * np.pi / 180.  
-    options['user_options.kite_standard.geometry.ddelta_max'] = np.array([2., 2., 2.])
+    # generator is not modelled
+    options['model.model_bounds.wound_tether_length.include'] = False # default: True
 
-    # don't include induction effects
-    options['user_options.induction_model'] = 'not_in_use'
-
+    # --------------------------- Initialization --------------------------- #
     # initialization
     options['solver.initialization.groundspeed'] = 80. 
     options['solver.initialization.inclination_deg'] = 45. 

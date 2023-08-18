@@ -22,50 +22,61 @@ from megawes_settings import set_megawes_settings
 import matplotlib.pyplot as plt
 import numpy as np
 
+# ----------------- user-specific options ----------------- #
+
 # indicate desired system architecture
-# here: single kite with 6DOF megAWES aircraft
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options = set_megawes_settings(options)
 
 # indicate desired operation mode
-# here: lift-mode system with pumping-cycle operation, with a one winding trajectory
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 1
-#options['model.system_bounds.theta.t_f'] = [10.0, 160] # additional constraints limiting path period 80 -->160
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # constant (or null) reel-out during power generation. Option 'simple' allows reel-in during power generation
+options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
+options['model.system_bounds.theta.t_f'] = [1., 1e3] # cycle period [s]
 
 # indicate desired environment
-# here: uniform wind velocity profile
-options['params.wind.z_ref'] = 100.0
-options['params.wind.power_wind.exp_ref'] = 0.15
 options['user_options.wind.model'] = 'uniform'
 options['user_options.wind.u_ref'] = 10.
+'''
+options['user_options.wind.model'] = 'log_wind'
+options['user_options.wind.u_ref'] = 10.
+options['params.wind.z_ref'] = 100.0
+options['params.wind.log_wind.z0_air'] = 0.0002
+'''
 
 # indicate numerical nlp details
-# here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['nlp.n_k'] = 40
-options['nlp.collocation.u_param'] = 'zoh'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
+options['nlp.n_k'] = 40 # approximately 40 per loop
+options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 
+# specify trial name for outputs
+trial_name = 'megawes_uniform_1loop'
+
+# ----------------- solve OCP ----------------- #
 # build and optimize the NLP (trial)
-trial = awe.Trial(options, 'megAWES')
+trial = awe.Trial(options, trial_name)
 trial.build()
 trial.optimize()
-#trial.write_to_csv('megAWES_outputs_RENAME')
-#trial.plot(['states', 'controls', 'constraints', 'quad'])
-#plt.show()
 
-# extract information from the solution for independent plotting or post-processing
-# here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
+# save results to csv
+trial.write_to_csv(trial_name+'_results')
+
+# plot results
+list_of_plots = ['isometric', 'states', 'controls', 'constraints']
+trial.plot(list_of_plots)
+for i, plot_name in enumerate(list_of_plots, start=1):
+    plt.figure(i)
+    plt.savefig('./'+trial_name+'_plot_'+plot_name+'.png')
+#plt.show
+
+'''
+# extract data for post-processing
 plot_dict = trial.visualization.plot_dict
 outputs = plot_dict['outputs']
 time = plot_dict['time_grids']['ip']
 avg_power = plot_dict['power_and_performance']['avg_power']/1e3
-print('======================================')
-print('Average power: {} kW'.format(avg_power))
-print('======================================')
 
 # plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
 trial.plot(['isometric'])
@@ -78,4 +89,5 @@ ax.get_legend().remove()
 ax.legend([l[0]], ['ref'], fontsize=14)
 figname = './megawes_trajectory_isometric.png'
 fig.savefig(figname)
+'''
 
