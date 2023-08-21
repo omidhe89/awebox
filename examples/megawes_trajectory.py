@@ -34,17 +34,11 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 1e3] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 15.] # cycle period [s]
 
 # indicate desired environment
 options['user_options.wind.model'] = 'uniform'
 options['user_options.wind.u_ref'] = 10.
-'''
-options['user_options.wind.model'] = 'log_wind'
-options['user_options.wind.u_ref'] = 10.
-options['params.wind.z_ref'] = 100.0
-options['params.wind.log_wind.z0_air'] = 0.0002
-'''
 
 # indicate numerical nlp details
 options['nlp.n_k'] = 40 # approximately 40 per loop
