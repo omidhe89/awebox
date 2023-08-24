@@ -197,7 +197,7 @@ class Optimization(object):
         V_ref = self.__V_ref
         visualization.plot(V_plot, visualization.options, [self.__outputs_init,
                                                            self.__outputs_opt, self.__outputs_ref],
-                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
+                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, self.__global_outputs_opt, fig_name=fig_name)
 
         return None
 

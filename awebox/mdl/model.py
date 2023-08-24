@@ -102,7 +102,7 @@ class Model(object):
         integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
 
         self.__kite_dof = options['kite_dof']
-        #self.__kite_type = options['kite_type']
+        self.__kite_type = options['kite_type']
         self.__kite_geometry = {} #options['geometry']
 
         self.__variables = variables
@@ -336,6 +336,14 @@ class Model(object):
     @kite_dof.setter
     def kite_dof(self, value):
         awelogger.logger.warning('Cannot set kite_dof object.')
+
+    @property
+    def kite_type(self):
+        return self.__kite_type
+
+    @kite_type.setter
+    def kite_type(self, value):
+        awelogger.logger.warning('Cannot set kite_type object.')
 
     @property
     def timings(self):

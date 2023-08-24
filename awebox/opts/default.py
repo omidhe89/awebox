@@ -341,6 +341,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', None), 't'),
+        ('solver',  'initialization', None, 'shape',                'circular', ('set initialization shape', ['circular','lemniscate']), 's'),
+        ('solver',  'initialization', 'lemniscate', 'az_width',    20*np.pi/180.0, ('lemniscate azimuth range', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'el_width',    8*np.pi/180.0,  ('lemniscate elevation range', None), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),

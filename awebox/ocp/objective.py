@@ -401,7 +401,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
     int_weights = find_int_weights(nlp_options)
     d = nlp_options['collocation']['d']
 
-    if model.kite_dof == 6:
+    if model.kite_dof == 6 or (model.kite_dof == 3 and model.kite_type == 'soft'):
         beta_cost = 0.0
         for kite in model.architecture.kite_nodes:
 

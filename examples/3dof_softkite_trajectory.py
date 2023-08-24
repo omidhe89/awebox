@@ -24,21 +24,48 @@ options['user_options.system_model.kite_type'] = 'soft'
 
 if options['user_options.system_model.kite_type'] == 'rigid':
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['solver.initialization.shape'] = 'circular'
+    options['model.system_bounds.theta.t_f'] = [5.0, 15.0]
 else:
     options['user_options.kite_standard'] = awe.kitepower_data.data_dict()
     options['params.tether.rho'] = 724.0
     options['params.tether.cd'] = 1.1
+    options['params.model_bounds.tether_force_limits'] = np.array([1e3, 5e3])
+    options['model.model_bounds.acceleration.include'] = False
+    options['model.model_bounds.tether_force.include'] = False
+    options['params.tether.f_max'] = 3.0  # tether stress safety factor
+    # system bounds
+    # TODO get rid of redundant option
+    options['model.ground_station.ddl_t_max'] = 2.0
+    options['model.ground_station.dddl_t_max'] = 50.0
+    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0]  # m/s
+    options['model.system_bounds.x.pitch'] = [0.0, np.pi/6]
+    options['model.system_bounds.u.dpitch'] = [-5.0, 5.0]
+    options['model.system_bounds.u.dyaw'] = [-3.0, 3.0]
+    options['model.system_bounds.x.q'] = [
+        np.array([-ca.inf, -ca.inf, 30.0]),  # q_z > 30 m
+        np.array([ca.inf, ca.inf, ca.inf])]
+    # initialization
+    options['solver.initialization.shape'] = 'lemniscate'
+    options['solver.initialization.lemniscate.az_width'] = 12.0*np.pi/180.0
+    options['solver.initialization.lemniscate.el_width'] = 12.0*np.pi/180.0
+    options['solver.initialization.inclination_deg'] = 20.
+    options['solver.initialization.groundspeed'] = 25.
+    options['solver.initialization.theta.diam_t'] = 5e-3
+    options['solver.initialization.l_t'] = 200.0
+    options['model.system_bounds.theta.t_f'] = [5, 60]
 
 options['model.tether.control_var'] = 'ddl_t'
-options['user_options.induction_model'] = 'not_in_use'  # it can cause syntax error!! 
+# it can cause syntax error!!
+options['user_options.induction_model'] = 'not_in_use'
 options['model.tether.use_wound_tether'] = False
 
 
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 1
-options['model.system_bounds.theta.t_f'] = [5, 15.0]
+options['user_options.trajectory.lift_mode.windings'] = 2
+
 
 # wind model
 options['params.wind.z_ref'] = 10.0
@@ -46,14 +73,15 @@ options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 9.
 
 # NLP discretization
-options['nlp.n_k'] = 60
+options['nlp.n_k'] = 40
 options['nlp.collocation.u_param'] = 'zoh'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
 options['solver.linear_solver'] = 'ma57'
-options['solver.mu_hippo'] = 1e-2
+options['solver.max_iter'] = 5000
+options['solver.max_iter_hippo'] = 2000
 
 # initialize and optimize trial
-trial = awe.Trial(options, 'single_kite_lift_mode')
+trial = awe.Trial(options, 'single_soft_kite_lift_mode')
 trial.build()
 trial.optimize()
 
@@ -68,7 +96,8 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 # plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
-trial.plot(['isometric', 'states', 'controls'])
+# trial.plot(['isometric', 'states', 'controls'])
+
 # fig = plt.gcf()
 # fig.set_size_inches(10, 8)
 # ax = fig.get_axes()[0]

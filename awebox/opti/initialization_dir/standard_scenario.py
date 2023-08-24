@@ -83,7 +83,6 @@ def guess_values_at_time(t, init_options, model):
     kite_nodes = model.architecture.kite_nodes
 
     kite_dof = model.kite_dof
-
     for node in range(1, number_of_nodes):
 
         parent = parent_map[node]
@@ -98,44 +97,91 @@ def guess_values_at_time(t, init_options, model):
             ret['dq' + str(node) + str(parent)] = np.zeros((3, 1))
 
         else:
-            height = init_options['precompute']['height']
-            radius = init_options['precompute']['radius']
+            if init_options['shape'] == 'circular':
+                height = init_options['precompute']['height']
+                radius = init_options['precompute']['radius']
 
-            ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
+                ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
 
-            tether_vector = ehat_radial * radius + ehat_normal * height
+                tether_vector = ehat_radial * radius + ehat_normal * height
 
-            position = parent_position + tether_vector
-            velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
-            ret['q' + str(node) + str(parent)] = position
-            ret['dq' + str(node) + str(parent)] = velocity
+                position = parent_position + tether_vector
+                velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+                ret['q' + str(node) + str(parent)] = position
+                ret['dq' + str(node) + str(parent)] = velocity
 
-            rho = init_options['sys_params_num']['atmosphere']['rho_ref']
-            diam = init_options['theta']['diam_s']
-            cd_tether = init_options['sys_params_num']['tether']['cd']
-            if 'CD' in init_options['sys_params_num']['aero'].keys():
-                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
-            elif 'CX' in init_options['sys_params_num']['aero'].keys():
-                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
+                rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+                diam = init_options['theta']['diam_s']
+                cd_tether = init_options['sys_params_num']['tether']['cd']
+                if 'CD' in init_options['sys_params_num']['aero'].keys():
+                    cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
+                elif 'CX' in init_options['sys_params_num']['aero'].keys():
+                    cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
+                else:
+                    cd_aero = 0.1
+                planform_area = init_options['sys_params_num']['geometry']['s_ref']
+                u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
+                approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
+                ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
+                ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
+
+                dcm = tools.get_kite_dcm(init_options, model, node, ret)
+                if init_options['cross_tether']:
+                    if init_options['cross_tether_attachment'] in ['com','stick']:
+                        dcm = get_cross_tether_dcm(init_options, dcm)
+                dcm_column = cas.reshape(dcm, (9, 1))
+
+                omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
+
+                if int(kite_dof) == 6:
+                    ret['omega' + str(node) + str(parent)] = omega_vector
+                    ret['r' + str(node) + str(parent)] = dcm_column
+            
+            elif init_options['shape'] == 'lemniscate':
+                w_lj = init_options['lemniscate']['az_width']
+                h_lj = init_options['lemniscate']['el_width']
+                el0 = init_options['inclination_deg']*np.pi/180
+                tether_length = init_options['l_t']
+                
+                a_lissajous = 2*np.pi / (init_options['precompute']['time_final']/init_options['windings'])
+            
+
+                az, el = tools.lissajous_curve(t,w_lj, h_lj, a = a_lissajous)
+                el = el + el0
+                
+                x, y, z = tools.calc_cartesian_coords(az, el, tether_length)
+                q = cas.vertcat(x, y, z)
+                ret['q' + str(node) + str(parent)] = q
+
+                azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a=a_lissajous)
+                dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, tether_length)
+                ret['dq' + str(node) + str(parent)] = cas.vertcat(dx, dy, dz)
+
+                psi = np.arctan2(azdot, -eldot)
+
+                ret['yaw' + str(node) + str(parent)] = psi
+
+                l = init_options['x']['l_t']
+                l12 = cas.norm_2(q[:2])
+                dcm_tau2e = cas.blockcat([
+                    [q[0]*q[2]/(l*l12), -q[1]/l12,  q[0]/l],
+                    [q[1]*q[2]/(l*l12), q[0]/l12, q[1]/l],
+                    [-l12/l,              0,         q[2]/l],
+                ])  # Transformation from tangential (to unit sphere surface) plane to earth frame
+                dcm_b2tau = cas.blockcat([
+                    [cas.cos(psi), -cas.sin(psi), 0],
+                    [cas.sin(psi), cas.cos(psi),  0],
+                    [0,  0,   1],
+                ])
+                kite_dcm = cas.mtimes(dcm_tau2e, dcm_b2tau)
+                ret['dcm' + str(node) + str(parent)
+                    ] = cas.reshape(kite_dcm, 9, 1)
+
+                if int(kite_dof) == 6:
+                    message = "No soft kite feature for 6 dof kite"
+                    raise ValueError(message)
             else:
-                cd_aero = 0.1
-            planform_area = init_options['sys_params_num']['geometry']['s_ref']
-            u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
-            approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
-            ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
-            ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
-
-            dcm = tools.get_kite_dcm(init_options, model, node, ret)
-            if init_options['cross_tether']:
-                if init_options['cross_tether_attachment'] in ['com','stick']:
-                    dcm = get_cross_tether_dcm(init_options, dcm)
-            dcm_column = cas.reshape(dcm, (9, 1))
-
-            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
-
-            if int(kite_dof) == 6:
-                ret['omega' + str(node) + str(parent)] = omega_vector
-                ret['r' + str(node) + str(parent)] = dcm_column
+                raise ValueError("Ivalid trajectory shape!")
 
     return ret
 
@@ -227,7 +273,6 @@ def set_user_radius(init_options):
     length = init_options['precompute']['hypotenuse']
     radius = length * np.sin(cone_angle)
     init_options['precompute']['radius'] = radius
-
     return init_options
 
 def set_user_winding_period(init_options):
