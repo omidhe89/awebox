@@ -636,7 +636,7 @@ for k in range(N_sim):
         # TH: First call at t=0 doesn't return same result as build-in call?
         # TH: Do I need to re-evaluate "tracking_reference" before each MPC call?
         # TH: Do I need to re-evaluate "out_input" before each MPC call?
-        u0_call_input, stats_input = solve_mpc_step(foldername, x0_input, out_input, tracking_reference)
+        # u0_call_input, stats_input = solve_mpc_step(foldername, x0_input, out_input, tracking_reference)
 
     elif (current_time % mpc_sampling_time) > 1e-6:
 
@@ -654,8 +654,8 @@ for k in range(N_sim):
     M_ext = outputs['aerodynamics', 'm_aero_body1']
 
     # TODO: replace force calculation using code-generated solvers
-    F_ext_input = None #...
-    M_ext_input = None #...
+    # F_ext_input = None #...
+    # M_ext_input = None #...
 
     # fill in forces and moments
     u0['f_fict10'] = F_ext / scaling['u']['f_fict10'] # external force
