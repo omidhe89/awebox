@@ -122,6 +122,50 @@ def set_path_generation_options(options, gamma=0.75):
 
     return options
 
+def set_path_tracking_trial_options(trial, gamma=0.75):
+
+    # --------------------------- Adjust state bounds --------------------------- #
+    # state variables bounds
+    b = round(trial.options_seed['user_options.kite_standard']['geometry']['b_ref'], 1)
+    trial.options_seed['model.system_bounds.x.q'] = [element - b/2 if i == 0 else element + b/2 for i, element in enumerate(trial.options_seed['model.system_bounds.x.q'])]
+    trial.options_seed['user_options.kite_standard.geometry.delta_max'] *= (1./gamma)
+    trial.options_seed['model.system_bounds.x.omega'] = [(1./gamma) * element for element in trial.options_seed['model.system_bounds.x.omega']]
+    trial.options_seed['model.system_bounds.x.l_t'][1] *= (1./gamma)
+    trial.options_seed['model.system_bounds.x.dl_t'] = [(1./gamma) * element for element in trial.options_seed['model.system_bounds.x.dl_t']]
+
+    # --------------------------- Adjust control bounds --------------------------- #
+    # control variable bounds
+    trial.options_seed['user_options.kite_standard.geometry.ddelta_max'] *= (1./gamma)
+    trial.options_seed['model.ground_station.ddl_t_max'] *= (1./gamma)
+
+    # --------------------------- Adjust operational constraints --------------------------- #
+    # validitiy of aerodynamic model
+    trial.options_seed['model.model_bounds.aero_validity.include'] = True
+    trial.options_seed['user_options.kite_standard.aero_validity.beta_max_deg'] *= (1./gamma)
+    trial.options_seed['user_options.kite_standard.aero_validity.beta_min_deg'] *= (1./gamma)
+    trial.options_seed['user_options.kite_standard.aero_validity.alpha_max_deg'] *= (1./gamma)
+    trial.options_seed['user_options.kite_standard.aero_validity.alpha_min_deg'] *= (1./gamma)
+
+    # airspeed limitation
+    trial.options_seed['model.model_bounds.airspeed.include'] = True
+    trial.options_seed['params.model_bounds.airspeed_limits'][1] *= (1./gamma)
+
+    # tether force limit
+    trial.options_seed['model.model_bounds.tether_stress.include'] = False
+    trial.options_seed['model.model_bounds.tether_force.include'] = True
+    trial.options_seed['params.model_bounds.tether_force_limits'][1] *= (1./gamma)
+
+    # acceleration constraint
+    trial.options_seed['model.model_bounds.acceleration.include'] = True
+    trial.options_seed['model.model_bounds.acceleration.acc_max'] *= (1./gamma)
+
+    # constrained roll, pitch, yaw angles
+    trial.options_seed['model.model_bounds.rotation.include'] = True
+    trial.options_seed['model.model_bounds.rotation.type'] = 'yaw'
+    trial.options_seed['params.model_bounds.rot_angles'] *= (1./gamma)
+
+    return trial
+
 def solve_mpc_step(foldername, x0, out, ref):
 
     # read initial guess
