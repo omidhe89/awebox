@@ -132,6 +132,12 @@ mpc_opts['mpc']['homotopy_warmstart'] = True
 # create PMPC object
 mpc = pmpc.Pmpc(mpc_opts['mpc'], mpc_sampling_time, trial)
 
+# save solver bounds
+for var in list(mpc.solver_bounds.keys()):
+    filename = foldername + var + '_bounds.pckl'
+    with open(filename, 'wb') as handle:
+        pickle.dump(mpc.solver_bounds[var], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 # ----------------- compile mpc solver ----------------- #
 if compile_mpc_solver:
    src_filename = foldername + 'mpc_solver.c'
@@ -387,11 +393,10 @@ z0 = dae.z(0.0)  # algebraic variables initial guess
 w0 = mpc.w0
 vars0 = system_model.variables(0.0)
 vars0['theta'] = system_model.variables_dict['theta'](0.0)
-bounds = mpc.solver_bounds
 
 # gather into dict
 simulation_variables = {'x0':x0, 'u0':u0, 'z0':z0, 'p0':p0, 'w0':w0,
-                        'vars0':vars0, 'scaling':scaling, 'bounds':bounds}
+                        'vars0':vars0, 'scaling':scaling}
 
 filename = foldername + 'simulation_variables.pckl'
 with open(filename, 'wb') as handle:

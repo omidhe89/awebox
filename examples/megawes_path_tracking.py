@@ -81,7 +81,13 @@ p0 = struct['p0']
 w0 = struct['w0']
 vars0 = struct['vars0']
 scaling = struct['scaling']
-bounds = struct['bounds']
+
+# load solver bounds
+bounds = {}
+for var in ['lbw', 'ubw', 'lbg', 'ubg']:
+    filename = foldername + var + '_bounds.pckl'
+    with open(filename, 'rb') as handle:
+        bounds[var] = pickle.load(handle)
 
 # load trial results
 filename = foldername + trial_name+'_results.csv'
