@@ -185,8 +185,8 @@ for k in range(N_sim):
         u0_call = out['u0']
 
         # fill in controls
-        u0['ddelta10'] = u0_call[6:9]  # scaled!
-        u0['ddl_t'] = u0_call[-1]  # scaled!
+        u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
+        u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
 
         # message
         print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_sim) + ", t=" + "{:.2f}".format(current_time) + " > compute MPC step")
@@ -247,4 +247,5 @@ l[-1].set_color('r')
 ax.legend([l[-1], l[-2]], ['fext', 'ref'], fontsize=14)
 plt.show()
 
+print([stats[i]['return_status'] for i in range(len(stats))])
 # ----------------- end ----------------- #
