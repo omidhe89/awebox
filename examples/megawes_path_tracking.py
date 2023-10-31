@@ -115,6 +115,33 @@ x0['dl_t'] = np.array(awes['x_dl_t_0'][-1]) / scaling['x']['dl_t']
 # Scaled algebraic vars
 z0['z'] = np.array(awes['z_lambda10_0'][-1]) / scaling['z']['lambda10']
 
+# ----------------- initialize MPC controller ----------------- #
+
+# MPC options
+opts = {}
+opts['ipopt.linear_solver'] = 'ma57'
+opts['ipopt.max_iter'] = 2000
+opts['ipopt.max_cpu_time'] = 1e2  # seconds
+opts['ipopt.print_level'] = 0
+opts['ipopt.sb'] = "yes"
+opts['print_time'] = 0
+opts['record_time'] = 1
+
+# MPC weights
+nx = 23
+nu = 10
+Q = np.ones((nx, 1))
+R = np.ones((nu, 1))
+P = np.ones((nx, 1))
+
+# Load function objects and solver
+F_tgrids = ca.external('F_tgrids', foldername + 'F_tgrids.so')
+F_ref = ca.external('F_ref', foldername + 'F_ref.so')
+F_aero = ca.external('F_aero', foldername + 'F_aero.so')
+F_int = ca.external('F_int', foldername + 'F_int.so')
+helpers = ca.external('helper_functions', foldername + 'helper_functions.so')
+solver = ca.nlpsol('solver', 'ipopt', foldername + 'mpc_solver.so', opts)
+
 # ----------------- run simulation ----------------- #
 
 # initialize simulation
@@ -140,32 +167,12 @@ for k in range(N_sim):
             w0 = w0.cat.full().squeeze().tolist()
 
         # get reference time
-        F_tgrids = ca.external('F_tgrids', foldername+'F_tgrids.so')
         tgrids = F_tgrids(t0 = current_time)
         for grid in list(tgrids.keys()):
             tgrids[grid] = ca.vertcat(*list(map(lambda x: x % t_f, tgrids[grid].full()))).full().squeeze()
 
         # get reference
-        F_ref = ca.external('F_ref', foldername+'F_ref.so')
         ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'])['ref']
-
-        # initialize mpc controller
-        opts = {}
-        opts['ipopt.linear_solver'] = 'ma57'
-        opts['ipopt.max_iter'] = 2000
-        opts['ipopt.max_cpu_time'] = 1e2 # seconds
-        opts['ipopt.print_level'] = 0
-        opts['ipopt.sb'] = "yes"
-        opts['print_time'] = 0
-        opts['record_time'] = 1
-        solver = ca.nlpsol('solver', 'ipopt', foldername + 'mpc_solver.so', opts)
-
-        # MPC weights
-        nx = 23
-        nu = 10
-        Q = np.ones((nx, 1))
-        R = np.ones((nu, 1))
-        P = np.ones((nx, 1))
 
         # solve MPC problem
         u_ref = 10.
@@ -174,7 +181,6 @@ for k in range(N_sim):
         stats.append(solver.stats())
 
         # MPC outputs
-        helpers = ca.external('helper_functions', foldername + 'helper_functions.so')
         out = helpers(V=sol['x'])
 
         # write shifted initial guess
@@ -198,7 +204,6 @@ for k in range(N_sim):
     # ----------------- evaluate aerodynamics ----------------- #
 
     # evaluate forces and moments
-    F_aero = ca.external('F_aero', foldername + 'F_aero.so')
     aero_out = F_aero(x0=x0, u0=u0)
 
     # fill in forces and moments
@@ -211,7 +216,6 @@ for k in range(N_sim):
     # ----------------- evaluate system dynamics ----------------- #
 
     # evaluate dynamics with integrator
-    F_int = ca.external('F_int', foldername + 'F_int.so')
     out = F_int(x0=x0, p0=p0)
     z0 = out['zf']
     x0 = out['xf']
@@ -247,5 +251,4 @@ l[-1].set_color('r')
 ax.legend([l[-1], l[-2]], ['fext', 'ref'], fontsize=14)
 plt.show()
 
-print([stats[i]['return_status'] for i in range(len(stats))])
 # ----------------- end ----------------- #
