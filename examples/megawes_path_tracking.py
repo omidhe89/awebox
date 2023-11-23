@@ -50,6 +50,51 @@ def csv2dict(fname):
 
     return columns
 
+# ----------------- evaluate MPC performance ----------------- #
+def visualize_mpc_perf(stats):
+    # Visualize MPC stats
+    fig = plt.figure(figsize=(10., 5.))
+    ax1 = fig.add_axes([0.12, 0.12, 0.75, 0.75])
+    ax2 = ax1.twinx()
+
+    # MPC stats
+    eval =  np.arange(1, len(stats) + 1)
+    status =  np.array([s['return_status'] for s in stats])
+    walltime =  np.array([s['t_proc_total'] for s in stats])
+    iterations =  np.array([s['iter_count'] for s in stats])
+
+    # Create masks
+    mask1 = status == 'Solve_Succeeded'
+    mask2 = status == 'Solved_To_Acceptable_Level'
+    mask3 = status == 'Maximum_Iterations_Exceeded'
+    mask4 = status == 'Infeasible_Problem_Detected'
+    mask5 = status == 'Maximum_CpuTime_Exceeded'
+    mask_all = np.array([True] * eval.max())
+    mask_list = [mask1, mask2, mask3, mask4, mask5]
+    mask_name = ['Solve_Succeeded', 'Solved_To_Acceptable_Level', 'Maximum_Iterations_Exceeded',
+                 'Infeasible_Problem_Detected', 'Maximum_CpuTime_Exceeded']
+    mask_clr = ['tab:green', 'tab:blue', 'tab:purple', 'tab:red', 'tab:orange']
+    # mask_list = [mask1, mask3]
+    # mask_name = ['Solve_Succeeded', 'Maximum_Iterations_Exceeded']
+    # mask_clr = ['tab:green', 'tab:purple']
+
+    # Plot
+    for mask, clr, name in zip(mask_list, mask_clr, mask_name):
+        ax1.bar(eval[mask], iterations[mask], color=clr, label=name)
+    ax2.plot(eval, walltime, '-k')  # , markeredgecolor='k', markerfacecolor=clr, label=name)
+
+    # Layout
+    ax1.set_title('Performance of MPC evaluations', fontsize=14)
+    ax1.set_xlabel('Evaluations', fontsize=14)
+    ax1.set_ylabel('Iterations', fontsize=14)
+    ax2.set_ylabel('Walltime [s]', fontsize=14)
+    ax1.set_xlim([1, eval.max()])
+    ax1.legend(loc=2)
+    ax1.set_ylim([0,250])
+    ax2.set_ylim([0,6])
+
+    return
+
 # ----------------- case initialization ----------------- #
 
 # case
@@ -61,12 +106,21 @@ if not os.path.isdir(foldername):
     os.system('mkdir '+foldername)
 
 # user settings
-N_nlp = 60 # Run
-N_sim = 200
-N_mpc = 10
+N_sim = 6000
 N_dt = 20
 mpc_sampling_time = 0.1
 time_step = mpc_sampling_time/N_dt
+N_max_fail = 20
+
+# MPC options
+opts = {}
+opts['ipopt.linear_solver'] = 'ma57'
+opts['ipopt.max_iter'] = 200
+opts['ipopt.max_cpu_time'] = 5.  # seconds
+opts['ipopt.print_level'] = 0
+opts['ipopt.sb'] = "yes"
+opts['print_time'] = 0
+opts['record_time'] = 1
 
 # ----------------- load optimization data ----------------- #
 
@@ -117,16 +171,6 @@ z0['z'] = np.array(awes['z_lambda10_0'][-1]) / scaling['z']['lambda10']
 
 # ----------------- initialize MPC controller ----------------- #
 
-# MPC options
-opts = {}
-opts['ipopt.linear_solver'] = 'ma57'
-opts['ipopt.max_iter'] = 2000
-opts['ipopt.max_cpu_time'] = 1e2  # seconds
-opts['ipopt.print_level'] = 0
-opts['ipopt.sb'] = "yes"
-opts['print_time'] = 0
-opts['record_time'] = 1
-
 # MPC weights
 nx = 23
 nu = 10
@@ -142,6 +186,15 @@ F_int = ca.external('F_int', foldername + 'F_int.so')
 helpers = ca.external('helper_functions', foldername + 'helper_functions.so')
 solver = ca.nlpsol('solver', 'ipopt', foldername + 'mpc_solver.so', opts)
 
+# Load evaluation functions g_fun and P_fun
+filename = foldername + "F_gfun.pckl"
+with open(filename, 'rb') as handle:
+    F_gfun = pickle.load(handle)
+
+filename = foldername + "F_pfun.pckl"
+with open(filename, 'rb') as handle:
+    F_pfun = pickle.load(handle)
+
 # ----------------- run simulation ----------------- #
 
 # initialize simulation
@@ -150,6 +203,7 @@ usim = []
 fsim = []
 msim = []
 stats = []
+N_mpc_fail = 0
 
 # Loop through time steps
 for k in range(N_sim):
@@ -178,7 +232,12 @@ for k in range(N_sim):
         u_ref = 10.
         sol = solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
                      p=ca.vertcat(x0, ref, u_ref, Q, R, P))
+
+        # MPC stats
         stats.append(solver.stats())
+        if stats[-1]["success"]==False:
+            N_mpc_fail += 1
+            #error = F_gfun(sol['x'] - F_pfun(ca.vertcat(x0, ref, u_ref, Q, R, P))).full()
 
         # MPC outputs
         out = helpers(V=sol['x'])
@@ -227,6 +286,10 @@ for k in range(N_sim):
     fsim.append(aero_out['F_ext'].full().squeeze())
     msim.append(aero_out['M_ext'].full().squeeze())
 
+    if N_mpc_fail == N_max_fail:
+        print(str(N_max_fail)+" failed MPC evaluations: Interrupt loop")
+        break
+
 # ----------------- visualize results ----------------- #
 
 # plot reference path
@@ -249,6 +312,19 @@ ax.plot([x[0] for x in xsim], [x[1] for x in xsim], [x[2] for x in xsim])
 l = ax.get_lines()
 l[-1].set_color('r')
 ax.legend([l[-1], l[-2]], ['fext', 'ref'], fontsize=14)
+
+# ----------------- MPC performance ----------------- #
+
+N_eval = len(stats)
+for i in range(N_eval):
+    message = "MPC eval "+str(i+1)+"/"+str(N_eval)+": Success = "+str(stats[i]["success"])\
+              + ", status = "+stats[i]["return_status"]+", iterations = "+"{:04d}".format(stats[i]["iter_count"])\
+              + ", walltime = "+"{:.3f}".format(stats[i]["t_proc_total"])
+    print(message)
+
+[stats[-1]["t_proc_total"] for i in range(N_eval)]
+
+visualize_mpc_perf(stats)
 plt.show()
 
 # ----------------- end ----------------- #

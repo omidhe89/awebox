@@ -797,3 +797,9 @@ class Pmpc(object):
     @z0.setter
     def z0(self, value):
         awelogger.logger.info('Cannot set z0 object.')
+
+    @property
+    def P_fun(self):
+        """ ...
+        """
+        return self.__P_fun

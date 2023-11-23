@@ -39,16 +39,16 @@ mpc_sampling_time = 0.1
 time_step = mpc_sampling_time/N_dt
 
 # outputs/compilation flags
-autosave = False
-COMPILATION_FLAG = False
+autosave = True
+COMPILATION_FLAG = True
 compile_x0_function = COMPILATION_FLAG
 compile_tgrids_function = COMPILATION_FLAG
 compile_ref_function = COMPILATION_FLAG
 compile_feedback_function = COMPILATION_FLAG
 compile_aero_function = COMPILATION_FLAG
 compile_integrator_function = COMPILATION_FLAG
-compile_mpc_solver = False # independent flag due to large compilation time
-filesave = False
+compile_mpc_solver = True # independent flag due to large compilation time
+filesave = True
 
 # ----------------- default options ----------------- #
 
@@ -95,9 +95,9 @@ trial.optimize(options_seed=options)
 # ----------------- save optimization results ----------------- #
 if autosave:
 
-   # path outputs
+   # path outputs (MPC requires outputs in DCM representation!!)
    filename = foldername + trial_name+'_results'
-   trial.write_to_csv(filename)
+   trial.write_to_csv(filename, rotation_representation="dcm")
 
    # path parameters
    filename = foldername + trial_name+'_theta.csv'
@@ -132,12 +132,6 @@ mpc_opts['mpc']['homotopy_warmstart'] = True
 # create PMPC object
 mpc = pmpc.Pmpc(mpc_opts['mpc'], mpc_sampling_time, trial)
 
-# save solver bounds
-for var in list(mpc.solver_bounds.keys()):
-    filename = foldername + var + '_bounds.pckl'
-    with open(filename, 'wb') as handle:
-        pickle.dump(mpc.solver_bounds[var], handle, protocol=pickle.HIGHEST_PROTOCOL)
-
 # ----------------- compile mpc solver ----------------- #
 if compile_mpc_solver:
    src_filename = foldername + 'mpc_solver.c'
@@ -145,6 +139,26 @@ if compile_mpc_solver:
    mpc.solver.generate_dependencies('mpc_solver.c')
    os.system("mv ./mpc_solver.c" + " " + src_filename)
    os.system("gcc -fPIC -shared -O3 " + src_filename + " -o " + lib_filename)
+
+# ----------------- additional mpc solver functions ----------------- #
+if autosave:
+    # save P_fun
+    F_pfun = mpc.P_fun
+    filename = foldername + 'F_pfun.pckl'
+    with open(filename, 'wb') as handle:
+        pickle.dump(F_pfun, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # save g_fun
+    F_gfun = mpc.trial.nlp.g_fun
+    filename = foldername + 'F_gfun.pckl'
+    with open(filename, 'wb') as handle:
+        pickle.dump(F_gfun, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # save solver bounds
+    for var in list(mpc.solver_bounds.keys()):
+        filename = foldername + var + '_bounds.pckl'
+        with open(filename, 'wb') as handle:
+            pickle.dump(mpc.solver_bounds[var], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # ----------------- build integrator ----------------- #
 
@@ -398,9 +412,11 @@ vars0['theta'] = system_model.variables_dict['theta'](0.0)
 simulation_variables = {'x0':x0, 'u0':u0, 'z0':z0, 'p0':p0, 'w0':w0,
                         'vars0':vars0, 'scaling':scaling}
 
-filename = foldername + 'simulation_variables.pckl'
-with open(filename, 'wb') as handle:
-    pickle.dump(simulation_variables, handle, protocol=pickle.HIGHEST_PROTOCOL)
+# save simulation variables
+if autosave:
+    filename = foldername + 'simulation_variables.pckl'
+    with open(filename, 'wb') as handle:
+        pickle.dump(simulation_variables, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # ----------------- write files ----------------- #
 
