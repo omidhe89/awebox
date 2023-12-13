@@ -8,7 +8,7 @@ Generation of optimal trajectory using MegAWES aircraft
 import awebox as awe
 import awebox.tools.integrator_routines as awe_integrators
 import awebox.pmpc as pmpc
-from megawes_settings_modified import set_megawes_settings
+from megawes_settings_modified import set_megawes_settings, set_path_generation_options
 import matplotlib.pyplot as plt
 import numpy as np
 import casadi as ca
@@ -28,7 +28,8 @@ trial_name="megawes_uniform_1loop"
 
 # user settings
 N_nlp = 60
-N_sim = 6000
+
+N_sim = 10000
 N_mpc = 10
 N_dt = 20
 mpc_sampling_time = 0.1
@@ -65,21 +66,33 @@ options['nlp.n_k'] = N_nlp
 options['nlp.collocation.u_param'] = 'zoh' 
 options['solver.linear_solver'] = 'ma57'
 
+# ----------------- Generation and tracking specific options ----------------- #
+options_tracking = copy.deepcopy(options)
+options_generation = copy.deepcopy(options)
+options_generation = set_path_generation_options(options_generation, gamma=0.8)
+
 # ----------------- build and optimize OCP trial ----------------- #
 
 # get architecture
-arch = awe.mdl.architecture.Architecture(options['user_options.system_model.architecture'])
+arch = awe.mdl.architecture.Architecture(options_generation['user_options.system_model.architecture'])
 
 # initialize trial
-trial = awe.Trial(options, trial_name)
+trial = awe.Trial(options_generation, trial_name)
 
 # build trial
 trial.build()
 
 # optimize trial
-trial.optimize(options_seed=options)
+trial.optimize(options_seed=options_generation)
 
 # ----------------- build mpc object ----------------- #
+
+# adjust trial's options_seed
+print("Trajectory generation with ddl = "+"{}".format(options_generation["model.ground_station.ddl_t_max"])+" m/s^2")
+print("Trajectory tracking with ddl = "+"{}".format(options_tracking["model.ground_station.ddl_t_max"])+" m/s^2")
+print("In 'trial.options_seed', ddl = "+"{}".format(trial.options_seed["model.ground_station.ddl_t_max"])+" m/s^2")
+trial.options_seed = options_tracking
+print("After modification, in 'trial.options_seed' ddl = "+"{}".format(trial.options_seed["model.ground_station.ddl_t_max"])+" m/s^2")
 
 # create MPC options
 mpc_opts = awe.Options()
@@ -95,7 +108,7 @@ mpc = pmpc.Pmpc(mpc_opts['mpc'], mpc_sampling_time, trial)
 # ----------------- build integrator ----------------- #
 
 # specify modified options (Turn ON flag for external forces)
-int_options = copy.deepcopy(options)
+int_options = copy.deepcopy(options_tracking)
 int_options['model.aero.fictitious_embedding'] = 'substitute'
 modified_options = awe.opts.options.Options()
 modified_options.fill_in_seed(int_options)
@@ -536,5 +549,5 @@ for i in range(N_eval):
 
 visualize_mpc_perf(stats)
 plt.show()
-
+print("All done")
 # ----------------- end ----------------- #
