@@ -33,38 +33,42 @@ else:
     options['params.model_bounds.tether_force_limits'] = np.array([1e3, 5e3])
     options['model.model_bounds.acceleration.include'] = False
     options['model.model_bounds.tether_force.include'] = False
-    options['params.tether.f_max'] = 3.0  # tether stress safety factor
+    options['params.tether.f_max'] = 1.2  # tether stress safety factor
     # system bounds
     # TODO get rid of redundant option
     options['model.ground_station.ddl_t_max'] = 2.0
     options['model.ground_station.dddl_t_max'] = 50.0
-    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0]  # m/s
+    options['model.system_bounds.x.dl_t'] = [-15.0, 15.0]  # m/s
     options['model.system_bounds.x.pitch'] = [0.0, np.pi/6]
-    options['model.system_bounds.u.dpitch'] = [-5.0, 5.0]
-    options['model.system_bounds.u.dyaw'] = [-3.0, 3.0]
+    options['model.system_bounds.u.dpitch'] = [-0.9, 0.9]
+    options['model.system_bounds.u.dyaw'] = [-1, 1]
     options['model.system_bounds.x.q'] = [
-        np.array([-ca.inf, -ca.inf, 30.0]),  # q_z > 30 m
-        np.array([ca.inf, ca.inf, ca.inf])]
+        np.array([0, -200, 30.0]),  # q_z > 30 m
+        np.array([np.inf, 200, 700])]
+    
     # initialization
+    options['solver.initialization.init_clipping'] = True  # False if you want to get rid of clipping initial guesses -> circumference and et.al that are used for winding period calculation.
     options['solver.initialization.shape'] = 'lemniscate'
-    options['solver.initialization.lemniscate.az_width'] = 12.0*np.pi/180.0
-    options['solver.initialization.lemniscate.el_width'] = 12.0*np.pi/180.0
-    options['solver.initialization.inclination_deg'] = 20.
-    options['solver.initialization.groundspeed'] = 25.
+    options['solver.initialization.lemniscate.az_width'] = 30.0*np.pi/180.0
+    options['solver.initialization.lemniscate.el_width'] = 15.0*np.pi/180.0
+    options['solver.initialization.inclination_deg'] = 25.
+    options['solver.initialization.groundspeed'] = 35.
     options['solver.initialization.theta.diam_t'] = 5e-3
-    options['solver.initialization.l_t'] = 200.0
-    options['model.system_bounds.theta.t_f'] = [5, 60]
+    options['solver.initialization.l_t'] = 100.0
+    options['model.system_bounds.theta.t_f'] = [0, 100]
 
 options['model.tether.control_var'] = 'ddl_t'
+options['model.model_bounds.aero_validity.include'] = True
+options['model.tether.use_wound_tether'] = True
 # it can cause syntax error!!
 options['user_options.induction_model'] = 'not_in_use'
-options['model.tether.use_wound_tether'] = False
+
 
 
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 2
+options['user_options.trajectory.lift_mode.windings'] = 3
 
 
 # wind model
@@ -73,9 +77,10 @@ options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 9.
 
 # NLP discretization
-options['nlp.n_k'] = 40
+options['nlp.n_k'] = 200
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
+options['nlp.phase_fix_reelout'] = 0.7
 options['solver.linear_solver'] = 'ma57'
 options['solver.max_iter'] = 5000
 options['solver.max_iter_hippo'] = 2000

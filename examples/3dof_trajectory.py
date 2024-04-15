@@ -22,22 +22,26 @@ options['user_options.system_model.architecture'] = {1: 0}
 options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
 options['user_options.system_model.kite_dof'] = 3
 options['model.tether.control_var'] = 'ddl_t'
+options['user_options.system_model.kite_type'] = 'rigid'
+options['solver.initialization.shape'] = 'circular'
+
 
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 2
-options['model.system_bounds.theta.t_f'] = [5.0, 15.0]
+options['user_options.trajectory.lift_mode.windings'] = 3
+options['model.system_bounds.theta.t_f'] = [5.0, 30.0]
 
 # wind model
 options['params.wind.z_ref'] = 10.0
 options['user_options.wind.model'] = 'log_wind'
-options['user_options.wind.u_ref'] = 5.
+options['user_options.wind.u_ref'] = 9.
 
 # NLP discretization
-options['nlp.n_k'] = 20
+options['nlp.n_k'] = 120
 options['nlp.collocation.u_param'] = 'zoh'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
+options['nlp.phase_fix_reelout'] = 0.7
 options['solver.linear_solver'] = 'ma57'
 options['solver.mu_hippo'] = 1e-2
 

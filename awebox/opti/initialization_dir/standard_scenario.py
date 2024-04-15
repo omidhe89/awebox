@@ -38,6 +38,7 @@ import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+from awebox.opti.initialization_dir.tools import find_lissajous_circumference
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -280,7 +281,17 @@ def set_user_winding_period(init_options):
     ground_speed = init_options['groundspeed']
     windings = init_options['windings']
     radius = init_options['precompute']['radius']
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+    tether_length = init_options['l_t']
+    n_k = init_options['n_k']
+    if init_options['shape'] == 'circular':
+        time_period = (2 * np.pi * windings * radius) / ground_speed
+    else:
+        A = init_options['lemniscate']['az_width']
+        B = init_options['lemniscate']['el_width']
+        circumference = find_lissajous_circumference(A, B, n_k, windings, tether_length)
+        time_period = (circumference/(n_k/windings))  / ground_speed
+        
+    
     init_options['precompute']['winding_period'] = time_period
 
     return init_options
@@ -295,11 +306,21 @@ def set_user_groundspeed(init_options):
 
 def set_precomputed_winding_period(init_options):
     groundspeed = init_options['precompute']['groundspeed']
+    windings = init_options['windings']
+    n_k = init_options['n_k']
+    tether_length = init_options['l_t']
     radius = init_options['precompute']['radius']
-
-    circumference = 2. * np.pi * radius
-    winding_period = circumference / groundspeed
-
+    if init_options['shape'] == 'circular':
+        circumference = 2. * np.pi * radius
+        winding_period = circumference / groundspeed
+    else:
+        
+        A = init_options['lemniscate']['az_width']
+        B = init_options['lemniscate']['el_width']
+        circumference = find_lissajous_circumference(A, B, n_k, windings, tether_length)
+        winding_period = (circumference/(n_k/windings)) / groundspeed
+    
+    
     init_options['precompute']['winding_period'] = winding_period
 
     return init_options
@@ -308,10 +329,18 @@ def set_precomputed_winding_period(init_options):
 def set_precomputed_groundspeed(init_options):
     winding_period = init_options['precompute']['winding_period']
     radius = init_options['precompute']['radius']
-
-    circumference = 2. * np.pi * radius
-    groundspeed = circumference / winding_period
-
+    windings = init_options['windings']
+    tether_length = init_options['l_t']
+    n_k = init_options['n_k']
+    if init_options['shape'] == 'circular':
+        circumference = 2. * np.pi * radius
+        groundspeed = circumference / winding_period
+    else:
+        A = init_options['lemniscate']['az_width']
+        B = init_options['lemniscate']['el_width']
+        circumference = find_lissajous_circumference(A, B, n_k, windings, tether_length)
+        groundspeed = (circumference/(n_k/windings)) / winding_period
+    
     init_options['precompute']['groundspeed'] = groundspeed
 
     return init_options

@@ -274,10 +274,10 @@ def lissajous_curve(t, w, h, a=1, delta=0):
 
 def lissajous_dcurve(t, w, h, a=1, delta=0):
     b = 2*a
-    x = a*w*np.cos(a*t+delta)
-    y = b*h*np.cos(b*t)
+    dx = a*w*np.cos(a*t+delta)
+    dy = b*h*np.cos(b*t)
     # y = -a*h*np.sin(a*t)  # let's fly eliptical path!!!
-    return x, y
+    return dx, dy
 
 
 def calc_cartesian_coords(az, el, r):
@@ -297,3 +297,20 @@ def calc_cartesian_speed(az, el, azdot, eldot, r):
     dy = np.cos(az)*azdot*l12 + np.sin(az)*dl12
 
     return (dx, dy, dz)
+
+
+def find_lissajous_circumference(A, B, n_k, winding_num, tether_length):
+    # A = init_options['lemniscate']['az_width']
+    # B = init_options['lemniscate']['el_width']
+    circumference = 0
+    for i in range(0,int(n_k/winding_num)):
+        az = lissajous_curve(i/n_k/winding_num, A, B, 2*np.pi)[0]
+        el = lissajous_curve(i/n_k/winding_num, A, B, 2*np.pi)[1]
+        azdot = lissajous_dcurve(i/n_k/winding_num, A, B, 2*np.pi)[0]
+        eldot = lissajous_dcurve(i/n_k/winding_num, A, B, 2*np.pi)[1]
+        dx = calc_cartesian_speed(az, el, azdot, eldot, tether_length)[0]
+        dy = calc_cartesian_speed(az, el, azdot, eldot, tether_length)[1]
+        dz = calc_cartesian_speed(az, el, azdot, eldot, tether_length)[2]
+        circumference +=  np.sqrt(dx**2 + dy**2 + dz**2)
+   
+    return circumference
