@@ -41,7 +41,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
-
+from awebox.opti.initialization_dir.tools import find_lissajous_circumference
 import awebox.mdl.wind as wind
 
 
@@ -1197,7 +1197,12 @@ def estimate_time_period(options, architecture):
     else:
         length = options['solver']['initialization']['theta']['l_s']
     radius = length * np.sin(cone_angle)
-
-    time_period = (2. * np.pi * windings * radius) / ground_speed
-
+    if options['user_options']['system_model']['kite_type'] == 'rigid':
+        time_period = (2. * np.pi * windings * radius) / ground_speed
+    else:
+        A = options['solver']['initialization']['lemniscate']['az_width']
+        B = options['solver']['initialization']['lemniscate']['el_width']
+        n_k = options['nlp']['n_k']
+        circumference = find_lissajous_circumference(A, B, n_k, windings, length)
+        time_period = (circumference*windings) / ground_speed
     return time_period

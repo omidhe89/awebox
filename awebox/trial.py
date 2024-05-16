@@ -115,7 +115,7 @@ class Trial(object):
         awelogger.logger.info('')
 
     def optimize(self, options_seed = [], final_homotopy_step = 'final',
-                 warmstart_file = None, vortex_linearization_file = None, debug_flags = ['states','controls','quad'],
+                 warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
                  debug_locations = 'all', save_flag = False, intermediate_solve = False, recalibrate_viz = True):
 
         if not options_seed:

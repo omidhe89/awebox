@@ -30,36 +30,42 @@ else:
     options['user_options.kite_standard'] = awe.kitepower_data.data_dict()
     options['params.tether.rho'] = 724.0
     options['params.tether.cd'] = 1.1
-    options['params.model_bounds.tether_force_limits'] = np.array([1e3, 5e3])
     options['model.model_bounds.acceleration.include'] = False
+
+    options['model.model_bounds.airspeed.include'] = True
+    options['params.model_bounds.airspeed_limits'] = np.array([15., 100.]) 
+
+    options['model.model_bounds.aero_validity.include'] = True
+    options['model.tether.use_wound_tether'] = False
     options['model.model_bounds.tether_force.include'] = False
-    options['params.tether.f_max'] = 1.2  # tether stress safety factor
+    options['params.model_bounds.tether_force_limits'] = np.array([1e1, 20e3])
+    options['model.model_bounds.tether_stress.include'] = False
+    options['params.tether.f_max'] = 1.0  # tether stress safety factor
     # system bounds
     # TODO get rid of redundant option
     options['model.ground_station.ddl_t_max'] = 2.0
     options['model.ground_station.dddl_t_max'] = 50.0
-    options['model.system_bounds.x.dl_t'] = [-15.0, 15.0]  # m/s
+    options['model.system_bounds.x.dl_t'] = [-15.0, 5.0]  # m/s
     options['model.system_bounds.x.pitch'] = [0.0, np.pi/6]
     options['model.system_bounds.u.dpitch'] = [-0.9, 0.9]
-    options['model.system_bounds.u.dyaw'] = [-1, 1]
+    options['model.system_bounds.u.dyaw'] = [-0.75, 0.75]
     options['model.system_bounds.x.q'] = [
-        np.array([0, -200, 30.0]),  # q_z > 30 m
-        np.array([np.inf, 200, 700])]
+        np.array([0, -200, 50.0]),  # q_z > 50 m
+        np.array([600, 200, 500])]
     
     # initialization
     options['solver.initialization.init_clipping'] = True  # False if you want to get rid of clipping initial guesses -> circumference and et.al that are used for winding period calculation.
     options['solver.initialization.shape'] = 'lemniscate'
     options['solver.initialization.lemniscate.az_width'] = 30.0*np.pi/180.0
     options['solver.initialization.lemniscate.el_width'] = 15.0*np.pi/180.0
-    options['solver.initialization.inclination_deg'] = 25.
-    options['solver.initialization.groundspeed'] = 35.
+    options['solver.initialization.inclination_deg'] = 20.
+    options['solver.initialization.groundspeed'] = 90.
     options['solver.initialization.theta.diam_t'] = 5e-3
     options['solver.initialization.l_t'] = 100.0
-    options['model.system_bounds.theta.t_f'] = [0, 100]
+    options['model.system_bounds.theta.t_f'] = [0, 120]
 
 options['model.tether.control_var'] = 'ddl_t'
-options['model.model_bounds.aero_validity.include'] = True
-options['model.tether.use_wound_tether'] = True
+
 # it can cause syntax error!!
 options['user_options.induction_model'] = 'not_in_use'
 
@@ -68,7 +74,8 @@ options['user_options.induction_model'] = 'not_in_use'
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 3
+winding_num = 4
+options['user_options.trajectory.lift_mode.windings'] = winding_num
 
 
 # wind model
@@ -76,11 +83,11 @@ options['params.wind.z_ref'] = 10.0
 options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 9.
 
-# NLP discretization
-options['nlp.n_k'] = 200
+# NLP 
+options['nlp.n_k'] = 240
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
-options['nlp.phase_fix_reelout'] = 0.7
+options['nlp.phase_fix_reelout'] = 0.75
 options['solver.linear_solver'] = 'ma57'
 options['solver.max_iter'] = 5000
 options['solver.max_iter_hippo'] = 2000
@@ -101,7 +108,7 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 # plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
-# trial.plot(['isometric', 'states', 'controls'])
+trial.plot(['isometric', 'states', 'controls','quad'])
 
 # fig = plt.gcf()
 # fig.set_size_inches(10, 8)
