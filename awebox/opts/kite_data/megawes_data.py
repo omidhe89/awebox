@@ -124,76 +124,118 @@ def aero():
 
     # Force coefficients (MegAWES)
     stab_derivs['CX'] = {}
-    stab_derivs['CX']['0'] = [-0.0411] #1
-    stab_derivs['CX']['alpha'] = [1.0081, 5.9011] #alpha,alpha2
-    # stab_derivs['CX']['beta'] =  [0., 0., 0.] #1,alpha,alpha2		
-    # stab_derivs['CX']['p'] =  [0., 0., 0.] #1,alpha,alpha2		
-    stab_derivs['CX']['q'] =  [-0.5274, 3.8884, 0.4307] #1,alpha,alpha2		
-    # stab_derivs['CX']['r'] =  [0., 0., 0.] #1,alpha,alpha2		
-    # stab_derivs['CX']['deltaa'] =  [0., 0., 0.] #1,alpha,alpha2		
-    stab_derivs['CX']['deltae'] = [-0.0311, 0.2359, 0.0710] #1,alpha,alpha2	
-    # stab_derivs['CX']['deltar'] =  [0., 0., 0.] #1,alpha,alpha2		
+    stab_derivs['CX']['0'] = [-0.0460] #1  COR:  -0.0460-0.085[NOTCOR]
+    stab_derivs['CX']['alpha'] = [0.5329, 3.6178] #alpha,alpha2
+    stab_derivs['CX']['q'] =  [-0.1689,3.1142,-0.3229 ] #1,alpha,alpha2     
+    stab_derivs['CX']['deltae'] = [-0.0203, 0.2281, 0.0541] #1,alpha,alpha2 
 
     stab_derivs['CY'] = {}
-    # stab_derivs['CY']['0'] = [0.] #1
-    # stab_derivs['CY']['alpha'] = [0., 0.] #alpha,alpha2
-    stab_derivs['CY']['beta'] = [-0.2279, -0.0184, 0.1062] #1,alpha,alpha2 	
-    stab_derivs['CY']['p'] = [-0.1069, -0.4699, 0.0327] 
-    # stab_derivs['CY']['q'] = [0., 0., 0.] 
-    stab_derivs['CY']['r'] = [0.0909, 0.0378, -0.0435]
-    stab_derivs['CY']['deltaa'] = [-0.0070, 0.0368, 0.0024]  
-    # stab_derivs['CY']['deltae'] = [0., 0., 0.]  
-    stab_derivs['CY']['deltar'] = [0.2115, 0.0197, -0.2032] 
-    
+    stab_derivs['CY']['beta'] = [-0.2056,-0.1529 , -0.3609] #1,alpha,alpha2     
+    stab_derivs['CY']['p'] = [0.0588,   0.3069, -0.0109 ] 
+    stab_derivs['CY']['r'] = [0.0869,   0.0271, -0.0541]
+    stab_derivs['CY']['deltaa'] = [0.0064,  -0.0365,    -0.0022]  
+    stab_derivs['CY']['deltar'] = [0.1801,  0.0196, -0.1724] 
+
     stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['0'] = [-1.2669]
-    stab_derivs['CZ']['alpha'] = [-6.3358, 0.17935] #alpha,alpha2
-    # stab_derivs['CZ']['beta'] = [0., 0., 0.] 
-    # stab_derivs['CZ']['p'] = [0., 0., 0.] 
-    stab_derivs['CZ']['q'] =  [-8.5019, -1.0139, 3.5051] 	
-    # stab_derivs['CZ']['r'] = [0., 0., 0.] 
-    # stab_derivs['CZ']['deltaa'] = [0., 0., 0.] 
-    stab_derivs['CZ']['deltae'] = [-0.5384, -0.0088, 0.5239] 		
-    # stab_derivs['CZ']['deltar'] = [0., 0., 0.] 
+    stab_derivs['CZ']['0'] = [-0.8781   ]
+    stab_derivs['CZ']['alpha'] = [-4.7042, 0.0335 ] #alpha,alpha2
+    stab_derivs['CZ']['q'] =  [-5.9365, -0.7263,    2.4422 ]    
+    stab_derivs['CZ']['deltae'] = [-0.4867, -0.0070,    0.4642]         
 
     # Moment coefficients (MegAWES)
     stab_derivs['Cl'] = {}
-    # stab_derivs['Cl']['0'] = [0.] #1
-    # stab_derivs['Cl']['alpha'] = [0., 0.] #alpha,alpha2
-    stab_derivs['Cl']['beta'] = [1.5181, 13.2144, 0.1427] 	
-    stab_derivs['Cl']['p'] = [0.5735, 0.0004, -0.2849] 	
-    # stab_derivs['Cl']['q'] = [0., 0., 0.] 
-    stab_derivs['Cl']['r'] = [0.2764, 0.6898, -0.1074] 		
-    stab_derivs['Cl']['deltaa'] = [0.2303, -0.0776, -0.2370] 		
-    # stab_derivs['Cl']['deltae'] = [0., 0., 0.] 
-    stab_derivs['Cl']['deltar'] = [0.0070, -0.0108, -0.0086]
-
+    stab_derivs['Cl']['beta'] = [-0.0101,-0.1834,0.0023]    
+    stab_derivs['Cl']['p'] = [-0.4888,  -0.0270 ,0.0920]    
+    stab_derivs['Cl']['r'] = [0.1966,0.5629,-0.0498 ]       
+    stab_derivs['Cl']['deltaa'] = [-0.1972,0.0574,0.1674]       
+    stab_derivs['Cl']['deltar'] = [0.0077,-0.0091,-0.0092]
+                                             
     stab_derivs['Cm'] = {}
-    stab_derivs['Cm']['0'] = [0.0808] 
-    stab_derivs['Cm']['alpha'] = [0.3672, 0.3390]
-    # stab_derivs['Cm']['beta'] = [0., 0., 0.] 
-    # stab_derivs['Cm']['p'] = [0., 0., 0.] 
-    stab_derivs['Cm']['q'] = [-8.0606, 0.0349, 4.0070] 
-    # stab_derivs['Cm']['r'] = [0., 0., 0.] 
-    # stab_derivs['Cm']['deltaa'] = [0., 0., 0.]
-    stab_derivs['Cm']['deltae'] = [-1.2832, -0.0098, 1.2499]
-    # stab_derivs['Cm']['deltar'] = [0., 0., 0.]
-
+    stab_derivs['Cm']['0'] = [-0.0650]  #COR:  -0.0650 + 0.0934
+    stab_derivs['Cm']['alpha'] = [-0.3306,0.2245 ]
+    stab_derivs['Cm']['q'] = [-7.7531,-0.0030,3.8925] 
+    stab_derivs['Cm']['deltae'] = [-1.1885,-0.0007,1.1612]
+                                                                                      
     stab_derivs['Cn'] = {}
-    # stab_derivs['Cn']['0'] = [0.] 
-    # stab_derivs['Cn']['alpha'] = [0., 0.] 
-    stab_derivs['Cn']['beta'] = [0.0423, 0.0109, -0.0215] 
-    stab_derivs['Cn']['p'] = [0.1019, 1.0564, -0.0048] 
-    # stab_derivs['Cn']['q'] = [0., 0., 0.] 
-    stab_derivs['Cn']['r'] = [-0.0358, 0.0759, 0.0211] 
-    stab_derivs['Cn']['deltaa'] = [-0.0055, 0.1119, -0.0104]
-    # stab_derivs['Cn']['deltae'] = [0., 0., 0.]
-    stab_derivs['Cn']['deltar'] = [-0.0476, -0.0033, 0.0458]
+    stab_derivs['Cn']['beta'] = [0.0385,0.0001,   -0.0441] 
+    stab_derivs['Cn']['p'] = [-0.0597,-0.7602,0.0691] 
+    stab_derivs['Cn']['r'] = [-0.0372,-0.0291,-0.2164] 
+    stab_derivs['Cn']['deltaa'] = [0.0054,-0.0425,0.0354]
+    stab_derivs['Cn']['deltar'] = [-0.0404,-0.0031,0.0385]
+
+    #! # Force coefficients (MegAWES)
+    #! stab_derivs['CX'] = {}
+    #! stab_derivs['CX']['0'] = [-0.0411] #1
+    #! stab_derivs['CX']['alpha'] = [1.0081, 5.9011] #alpha,alpha2
+    #! # stab_derivs['CX']['beta'] =  [0., 0., 0.] #1,alpha,alpha2		
+    #! # stab_derivs['CX']['p'] =  [0., 0., 0.] #1,alpha,alpha2		
+    #! stab_derivs['CX']['q'] =  [-0.5274, 3.8884, 0.4307] #1,alpha,alpha2		
+    #! # stab_derivs['CX']['r'] =  [0., 0., 0.] #1,alpha,alpha2		
+    #! # stab_derivs['CX']['deltaa'] =  [0., 0., 0.] #1,alpha,alpha2		
+    #! stab_derivs['CX']['deltae'] = [-0.0311, 0.2359, 0.0710] #1,alpha,alpha2	
+    #! # stab_derivs['CX']['deltar'] =  [0., 0., 0.] #1,alpha,alpha2		
+
+    #! stab_derivs['CY'] = {}
+    #! # stab_derivs['CY']['0'] = [0.] #1
+    #! # stab_derivs['CY']['alpha'] = [0., 0.] #alpha,alpha2
+    #! stab_derivs['CY']['beta'] = [-0.2279, -0.0184, 0.1062] #1,alpha,alpha2 	
+    #! stab_derivs['CY']['p'] = [-0.1069, -0.4699, 0.0327] 
+    #! # stab_derivs['CY']['q'] = [0., 0., 0.] 
+    #! stab_derivs['CY']['r'] = [0.0909, 0.0378, -0.0435]
+    #! stab_derivs['CY']['deltaa'] = [-0.0070, 0.0368, 0.0024]  
+    #! # stab_derivs['CY']['deltae'] = [0., 0., 0.]  
+    #! stab_derivs['CY']['deltar'] = [0.2115, 0.0197, -0.2032] 
+    #! 
+    #! stab_derivs['CZ'] = {}
+    #! stab_derivs['CZ']['0'] = [-1.2669]
+    #! stab_derivs['CZ']['alpha'] = [-6.3358, 0.17935] #alpha,alpha2
+    #! # stab_derivs['CZ']['beta'] = [0., 0., 0.] 
+    #! # stab_derivs['CZ']['p'] = [0., 0., 0.] 
+    #! stab_derivs['CZ']['q'] =  [-8.5019, -1.0139, 3.5051] 	
+    #! # stab_derivs['CZ']['r'] = [0., 0., 0.] 
+    #! # stab_derivs['CZ']['deltaa'] = [0., 0., 0.] 
+    #! stab_derivs['CZ']['deltae'] = [-0.5384, -0.0088, 0.5239] 		
+    #! # stab_derivs['CZ']['deltar'] = [0., 0., 0.] 
+
+    # Moment coefficients (MegAWES)
+
+    #! stab_derivs['Cl'] = {}
+    #! # stab_derivs['Cl']['0'] = [0.] #1
+    #! # stab_derivs['Cl']['alpha'] = [0., 0.] #alpha,alpha2
+    #! stab_derivs['Cl']['beta'] = [1.5181, 13.2144, 0.1427] 	
+    #! stab_derivs['Cl']['p'] = [0.5735, 0.0004, -0.2849] 	
+    #! # stab_derivs['Cl']['q'] = [0., 0., 0.] 
+    #! stab_derivs['Cl']['r'] = [0.2764, 0.6898, -0.1074] 		
+    #! stab_derivs['Cl']['deltaa'] = [0.2303, -0.0776, -0.2370] 		
+    #! # stab_derivs['Cl']['deltae'] = [0., 0., 0.] 
+    #! stab_derivs['Cl']['deltar'] = [0.0070, -0.0108, -0.0086]
+
+    #! stab_derivs['Cm'] = {}
+    #! stab_derivs['Cm']['0'] = [0.0808] 
+    #! stab_derivs['Cm']['alpha'] = [0.3672, 0.3390]
+    #! # stab_derivs['Cm']['beta'] = [0., 0., 0.] 
+    #! # stab_derivs['Cm']['p'] = [0., 0., 0.] 
+    #! stab_derivs['Cm']['q'] = [-8.0606, 0.0349, 4.0070] 
+    #! # stab_derivs['Cm']['r'] = [0., 0., 0.] 
+    #! # stab_derivs['Cm']['deltaa'] = [0., 0., 0.]
+    #! stab_derivs['Cm']['deltae'] = [-1.2832, -0.0098, 1.2499]
+    #! # stab_derivs['Cm']['deltar'] = [0., 0., 0.]
+
+    #! stab_derivs['Cn'] = {}
+    #! # stab_derivs['Cn']['0'] = [0.] 
+    #! # stab_derivs['Cn']['alpha'] = [0., 0.] 
+    #! stab_derivs['Cn']['beta'] = [0.0423, 0.0109, -0.0215] 
+    #! stab_derivs['Cn']['p'] = [0.1019, 1.0564, -0.0048] 
+    #! # stab_derivs['Cn']['q'] = [0., 0., 0.] 
+    #! stab_derivs['Cn']['r'] = [-0.0358, 0.0759, 0.0211] 
+    #! stab_derivs['Cn']['deltaa'] = [-0.0055, 0.1119, -0.0104]
+    #! # stab_derivs['Cn']['deltae'] = [0., 0., 0.]
+    #! stab_derivs['Cn']['deltar'] = [-0.0476, -0.0033, 0.0458]
 
     # Aero validity (MegAWES)
     aero_validity = {}
-    aero_validity['alpha_max_deg'] = 4.2
-    aero_validity['alpha_min_deg'] = -14.
+    aero_validity['alpha_max_deg'] = +5.  #4.2
+    aero_validity['alpha_min_deg'] = -15. #-14.5
     aero_validity['beta_max_deg'] = 10.
     aero_validity['beta_min_deg'] = -10.
 
