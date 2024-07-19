@@ -33,7 +33,7 @@ else:
     options['model.model_bounds.acceleration.include'] = False
 
     options['model.model_bounds.airspeed.include'] = True
-    options['params.model_bounds.airspeed_limits'] = np.array([15., 100.]) 
+    options['params.model_bounds.airspeed_limits'] = np.array([15., 80.]) 
 
     options['model.model_bounds.aero_validity.include'] = True
     options['model.tether.use_wound_tether'] = False
@@ -48,21 +48,21 @@ else:
     options['model.system_bounds.x.dl_t'] = [-15.0, 5.0]  # m/s
     options['model.system_bounds.x.pitch'] = [0.0, np.pi/6]
     options['model.system_bounds.u.dpitch'] = [-0.9, 0.9]
-    options['model.system_bounds.u.dyaw'] = [-0.75, 0.75]
+    options['model.system_bounds.u.dyaw'] = [-0.8, 0.8]
     options['model.system_bounds.x.q'] = [
-        np.array([0, -200, 50.0]),  # q_z > 50 m
-        np.array([600, 200, 500])]
+        np.array([0, -120, 30.0]),  # q_z > 50 m
+        np.array([500, 120, 300])]
     
     # initialization
     options['solver.initialization.init_clipping'] = True  # False if you want to get rid of clipping initial guesses -> circumference and et.al that are used for winding period calculation.
     options['solver.initialization.shape'] = 'lemniscate'
-    options['solver.initialization.lemniscate.az_width'] = 30.0*np.pi/180.0
+    options['solver.initialization.lemniscate.az_width'] = 40.0*np.pi/180.0
     options['solver.initialization.lemniscate.el_width'] = 15.0*np.pi/180.0
-    options['solver.initialization.inclination_deg'] = 20.
-    options['solver.initialization.groundspeed'] = 90.
-    options['solver.initialization.theta.diam_t'] = 5e-3
-    options['solver.initialization.l_t'] = 100.0
-    options['model.system_bounds.theta.t_f'] = [0, 120]
+    options['solver.initialization.inclination_deg'] = 45.
+    options['solver.initialization.l_t'] = 150
+    options['solver.initialization.groundspeed'] =  45#50 #
+
+    options['model.system_bounds.theta.t_f'] = [0, 80]
 
 options['model.tether.control_var'] = 'ddl_t'
 
@@ -74,20 +74,20 @@ options['user_options.induction_model'] = 'not_in_use'
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-winding_num = 4
+winding_num = 3 #4
 options['user_options.trajectory.lift_mode.windings'] = winding_num
 
 
 # wind model
 options['params.wind.z_ref'] = 10.0
 options['user_options.wind.model'] = 'log_wind'
-options['user_options.wind.u_ref'] = 9.
+options['user_options.wind.u_ref'] = 10
 
 # NLP 
-options['nlp.n_k'] = 240
+options['nlp.n_k'] = 100
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
-options['nlp.phase_fix_reelout'] = 0.75
+options['nlp.phase_fix_reelout'] = 0.75 #0.75
 options['solver.linear_solver'] = 'ma57'
 options['solver.max_iter'] = 5000
 options['solver.max_iter_hippo'] = 2000
@@ -109,6 +109,11 @@ print('======================================')
 
 # plot reference path (options are: 'states', 'controls', 'constraints', 'quad'
 trial.plot(['isometric', 'states', 'controls','quad'])
+
+# path outputs (MPC requires outputs in DCM representation!!)
+#%%
+filename =  './ soft_results_'+ str(winding_num)+ '_W'+ str(options['user_options.wind.u_ref'] )
+trial.write_to_csv(filename, rotation_representation="dcm")
 
 # fig = plt.gcf()
 # fig.set_size_inches(10, 8)

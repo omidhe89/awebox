@@ -201,6 +201,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
         ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
         ('model',  'system_bounds', 'x',          'pitch',        [0.0, 30.0*np.pi/180.0],                                                       ('soft kit pitch bounds', None),'x'),
+        ('model',  'system_bounds', 'x',          'yaw',          [-np.pi, np.pi],                                                       ('soft kit pitch bounds', None),'x'),             
         ('model',  'system_bounds', 'u',          'dpitch',       [-1.5, 1.5],                                                                   ('soft kit pitch rate bounds', None),'x'),
         ('model',  'system_bounds', 'u',          'dyaw',         [-1.5, 1.5],                                                                     ('soft kit yaw rate bounds', None),'x'),
         #### model bounds (range of validity)
