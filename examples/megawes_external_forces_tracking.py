@@ -15,7 +15,7 @@ Current issues:
 - option 'single_reelout' doesn't work with MPC, use 'simple' instead.
 - option 'collocation_nodes' doesn't work with MPC, use 'shooting_nodes' instead.
 """
-
+#%%
 # imports
 import awebox as awe
 import awebox.tools.integrator_routines as awe_integrators
@@ -25,24 +25,22 @@ import numpy as np
 import os
 import pickle
 import copy
-import matplotlib
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
-
+plt.ion()
 # ----------------- compile dependencies ----------------- #
 
 # compilation flag
 compilation_flag = False
 
 # ----------------- set trajectory options ----------------- #
-
+#%%
 # indicate desired system architecture
 aero_model='VLM'
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options = set_megawes_path_generation_settings(options, aero_model)
+options = set_megawes_path_generation_settings(aero_model, options)
 
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
@@ -77,13 +75,14 @@ trial.optimize(options_seed=optimization_options)
 P_ave_ref = trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]
 
 # ----------------- set tracking options for MPC and integrator ----------------- #
-
+#%%
 # simulation horizon
 t_end = 1*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
-tracking_options = copy.deepcopy(optimization_options)
-tracking_options = set_megawes_path_tracking_settings(tracking_options, aero_model='ALM')
+traj_options = {}
+traj_options = copy.deepcopy(optimization_options)
+tracking_options = set_megawes_path_tracking_settings('ALM', traj_options)
 
 # set MPC options
 ts = 0.1 # sampling time (length of one MPC window)
@@ -652,3 +651,5 @@ fig = visualize_mpc_perf(stats)
 fig.savefig('outputs_megawes_external_forces_tracking_plot_mpc_performance.png')
 
 # ----------------- end ----------------- #
+
+# %%

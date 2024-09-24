@@ -9,7 +9,7 @@ import numpy as np
 import awebox.opts.options as opts
 
 EXTERNAL_FORCES = True
-
+plt.iom()
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
 options_seed = {}

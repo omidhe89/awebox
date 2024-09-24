@@ -45,3 +45,6 @@ experimental/
 *.srctrlbm
 *.srctrldb
 *.srctrlprj
+
+# vscode configurations
+.vscode/

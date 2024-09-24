@@ -10,12 +10,12 @@ Energy, Vol.173, pp. 569-585, 2019.
 :author: Jochem De Schutter
 :edited: Rachel Leuthold
 """
-
+#%%
 import awebox as awe
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
-
+plt.ion()
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
 options = {}

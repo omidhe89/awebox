@@ -11,17 +11,17 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 
 :author: Thomas Haas, Ghent University, 2024 (adapted from Jochem De Schutter)
 """
-
+#%%
 import awebox as awe
 from megawes_settings import set_megawes_path_generation_settings
 import matplotlib
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+plt.ion()
 
 # ----------------- user-specific options ----------------- #
-
+#%%
 # indicate aerodynamic model of aircraft
-aero_model = 'VLM' # options are 'VLM', 'ALM', and 'CFD'
+aero_model = 'ALM' # options are 'VLM', 'ALM', and 'CFD'
 
 # indicate desired system architecture
 options = {}
@@ -33,7 +33,7 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
@@ -66,7 +66,7 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 # ----------------- specific plots ----------------- #
-
+#%%
 # plot 3D flight path
 trial.plot(['isometric'])
 fig = plt.gcf()
@@ -77,16 +77,17 @@ ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
 ax.set_zlabel(ax.get_zlabel(), fontsize=12)
-ax.set_xlim([0,400])
-ax.set_ylim([-200,200])
-ax.set_zlim([0,400])
+ax.set_xlim([0,700])
+ax.set_ylim([-300,300])
+ax.set_zlim([0,700])
 ax.view_init(azim=-70, elev=20)
 l = ax.get_lines()
 l[0].set_color('b')
 ax.get_legend().remove()
 ax.legend([l[0]], ['reference ('+aero_model+', P='+'{:.2f}'.format(avg_power.full()[0][0]/1e3)+'MW)'], fontsize=12)
 fig.suptitle("")
-fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_3dpath.png')
+# fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_3dpath.png')
+plt.show()
 
 # plot power profile
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
@@ -97,6 +98,8 @@ ax.tick_params(axis='both', labelsize=12)
 ax.set_xlabel('t [s]', fontsize=12)
 ax.set_ylabel('P [MW]', fontsize=12)
 ax.grid()
-fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_power.png')
+# fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_power.png')
 plt.show()
 
+
+# %%
