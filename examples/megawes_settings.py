@@ -119,7 +119,7 @@ def set_megawes_path_tracking_settings(aero_model, options):
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = False
     options['model.model_bounds.tether_force.include'] = True
-    options['params.model_bounds.tether_force_limits'] = np.array([50, 1.7e6]) #[Eijkelhof2022]
+    options['params.model_bounds.tether_force_limits'] = np.array([131, 1.7e6]) #[Eijkelhof2022]
 
     # peak power limit
     options['nlp.cost.P_max'] = True

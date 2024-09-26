@@ -2,26 +2,27 @@
 """
 MPC-based closed loop simulation example for a single 3DOF kite system.
 """
-
+#%%
 # imports
 import awebox as awe
 import casadi as ca
 import copy
 import matplotlib.pyplot as plt
-
+plt.ion()
 # single kite with point-mass model
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-options['user_options.system_model.kite_dof'] = 3
+options['user_options.system_model.kite_dof'] = 6
 
 # trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
-options['model.system_bounds.theta.t_f'] =  [5.0, 15.0]
+options['model.system_bounds.theta.t_f'] =  [5.0, 20.0]
+options['model.model_bounds.tether_force.include'] = False
 # wind model
-options['params.wind.z_ref'] = 10.0
+options['params.wind.z_ref'] = 12.0
 options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 5.
 
@@ -32,6 +33,7 @@ options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57' # if HSL
 options['solver.mu_hippo'] = 1e-2
 
+#options['nlp.collocation.ineq_constraints'] = 'collocation_nodes'
 # initialize and optimize trial
 trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
@@ -40,6 +42,7 @@ trial.plot(['isometric'])
 plt.show()
 
 # set-up closed-loop simulation
+#%%
 N_mpc = 10 # MPC horizon
 N_sim = 200  # closed-loop simulation steps
 ts = 0.1 # sampling time
@@ -72,3 +75,4 @@ closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, options)
 closed_loop_sim.run(N_sim)
 closed_loop_sim.plot(['isometric','states'])
 plt.show()
+# %%
