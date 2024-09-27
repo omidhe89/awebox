@@ -117,23 +117,23 @@ class Simulation:
         # TODO: check consistency of initial conditions and give warning
 
         x0 = self.__initialize_sim(n_sim, x0, u_sim)
-
+        z0 = self.__z0
         for i in range(n_sim):
 
             # get (open/closed-loop) controls
             if self.__sim_type == 'closed_loop':
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
-
+                #z0 = self.__mpc.z0
             elif self.__sim_type == 'open_loop':
-                u0 = self.__u_sim[:,i]
-
+                u0 = u_sim[i,:]
             # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
+            var_next = self.__F(x0 = x0, p = u0, z0 = z0)
+
             self.__store_results(x0, u0, var_next['qf'])
 
             # shift initial state
             x0 = var_next['xf']
-
+            z0 = var_next['zf']
         self.__postprocess_sim()
 
         return None
@@ -149,17 +149,22 @@ class Simulation:
         # set-up open loop controls
         if self.__sim_type == 'open_loop':
             values_ip_u = []
-            interpolator = self.__trial.nlp.Collocastion.build_interpolator(
+            interpolator = self.__trial.nlp.Collocation.build_interpolator(
                 self.__trial.options['nlp'],
                 self.__trial.optimization.V_opt)
             T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
             t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
             self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
             for name in list(self.__trial.model.variables_dict['u'].keys()):
-                for j in range(self.__trial.variables_dict['u'][name].shape[0]):
-                    values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
+                for j in range(self.__trial.model.variables_dict['u'][name].shape[0]):
+                    if self.__trial.options['nlp']['collocation']['u_param'] == 'poly':
+                        values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
+                        self.__u_sim = ct.horzcat(*values_ip_u)
+                    else:
+                        self.__u_sim = u_sim
+                        # values_ip_u.append(self.__trial.optimization.V_opt['u',j])
 
-            self.__u_sim = ct.horzcat(*values_ip_u)
+            
 
         # initialize algebraic variables for integrator
         self.__z0 = 0.1
