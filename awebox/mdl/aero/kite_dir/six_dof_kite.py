@@ -80,8 +80,11 @@ def get_force_and_moment_vector(options, variables, atmos, wind, architecture, p
 
     m_found_frame = moment_info['frame']
     m_found_vector = moment_info['vector']
+    
+    ctrl_star_vec = moment_info['ctrl_star']
+    ctrl_delta_vec = moment_info['ctrl_delta']
 
-    return f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm
+    return f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm, ctrl_star_vec, ctrl_delta_vec
 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
@@ -155,6 +158,8 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
     CF = force_coeff_info['coeffs']
     CM = moment_coeff_info['coeffs']
 
+    ctrl_coeffs_star = moment_coeff_info['ctrl']['star']
+    ctrl_coeffs_delta = moment_coeff_info['ctrl']['delta']
     # notice that magnitudes don't change under rotation
     dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u_earth.T, vec_u_earth)
     planform_area = parameters['theta0', 'geometry', 's_ref']
@@ -168,6 +173,9 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
 
     moment = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM)
     moment_info['vector'] = moment
+
+    moment_info['ctrl_star'] = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, ctrl_coeffs_star)
+    moment_info['ctrl_delta'] = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, ctrl_coeffs_delta)
 
     return force_info, moment_info
 

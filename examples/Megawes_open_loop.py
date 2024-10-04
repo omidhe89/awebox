@@ -44,7 +44,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 120 # approximately 40 per loop
+options['nlp.n_k'] = 30 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -74,12 +74,13 @@ plt.show()
 #%% 
 
 # ----------------- create MPC controller with tracking-specific options ----------------- #
-ctrl_strategy  = 'open_loop' #  choose between: 'open_loop'  & 'closed loop'
+ctrl_strategy  = 'closed_loop' #  choose between: 'open_loop'  & 'closed loop'
 if ctrl_strategy == 'closed_loop':
     t_end = 1*trial.visualization.plot_dict['theta']['t_f']
 else:
     t_end = 2*trial.visualization.plot_dict['theta']['t_f']
 
+ctrl_type = 'ndi' # choose between 'ndi' & 'mpc
 # adjust options for path tracking (incl. aero model)
 tracking_options = {}
 tracking_options = copy.deepcopy(options)
@@ -88,24 +89,28 @@ tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
 
 # set MPC options
 N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
-N_sim = 200  # closed-loop simulation steps
+N_sim = 300  # closed-loop simulation steps
 ts = t_end/N_sim # sampling time (length of one MPC window)
 
 # MPC options
-tracking_options['mpc.scheme'] = 'radau'
-tracking_options['mpc.d'] = 4
-tracking_options['mpc.jit'] = False
-tracking_options['mpc.cost_type'] = 'tracking'
-tracking_options['mpc.expand'] = True
-tracking_options['mpc.linear_solver'] = 'ma57'
-tracking_options['mpc.max_iter'] = 1000
-tracking_options['mpc.max_cpu_time'] = 2000
-tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.plot_flag'] = False
-tracking_options['mpc.ref_interpolator'] = 'spline'
-tracking_options['mpc.u_param'] = 'zoh'
-tracking_options['mpc.homotopy_warmstart'] = True
-tracking_options['mpc.terminal_point_constr'] = False
+if ctrl_type == 'mpc':
+    tracking_options['mpc.scheme'] = 'radau'
+    tracking_options['mpc.d'] = 4
+    tracking_options['mpc.jit'] = False
+    tracking_options['mpc.cost_type'] = 'tracking'
+    tracking_options['mpc.expand'] = True
+    tracking_options['mpc.linear_solver'] = 'ma57'
+    tracking_options['mpc.max_iter'] = 1000
+    tracking_options['mpc.max_cpu_time'] = 2000
+    tracking_options['mpc.N'] = N_mpc
+    tracking_options['mpc.plot_flag'] = False
+    tracking_options['mpc.ref_interpolator'] = 'spline'
+    tracking_options['mpc.u_param'] = 'zoh'
+    tracking_options['mpc.homotopy_warmstart'] = True
+    tracking_options['mpc.terminal_point_constr'] = False
+else:
+    tracking_options['ndi.N'] = N_sim
+
 
 # simulation options
 N_dt = 20 # integrator steps within one sampling time
@@ -122,7 +127,7 @@ tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['init
 
 # make simulator
 
-sim = awe.sim.Simulation(trial, ctrl_strategy, ts, tracking_options)
+sim = awe.sim.Simulation(trial, ctrl_strategy, ctrl_type ,ts, tracking_options)
 if ctrl_strategy == 'open_loop':
     t_grids_new = np.linspace(0, t_end, N_sim).squeeze()
     u_opt = np.array(trial.solution_dict['V_opt']['u']).squeeze()
@@ -135,13 +140,15 @@ if ctrl_strategy == 'open_loop':
         # interp_func = interp1d(t_grids, i_elements, kind='slinear', bounds_error=False, fill_value='extrapolate')
         # interp_u[:,i] = interp_func(t_grids_new)
         # ***** CubicSpline *****
-        cs = CubicSpline(t_grids.squeeze(), i_elements.squeeze(), bc_type='periodic', extrapolate='periodic')
+        cs = CubicSpline(t_grids.squeeze(), i_elements.squeeze(), axis=3,  bc_type='periodic', extrapolate='periodic')
         interp_u[:,i] = cs(t_grids_new)
 
         # interp_u[:,i] = np.interp(t_grids_new, t_grids.squeeze(), i_elements.squeeze(), period=t_end)
     sim.run(N_sim, u_sim = interp_u ) #interp_u
 else:
     sim.run(N_sim)
+
+
 sim.plot(['isometric'])
 fig, axs = plt.subplots(2,1)
 axs[0].plot(t_grids_new, interp_u[:,5:8], label='interpolated values',linestyle='--')
@@ -150,4 +157,5 @@ axs[0].step(t_grids, u_opt[:,5:8], label='initial values',linestyle='-')
 axs[1].plot(t_grids_new, interp_u[:,9], label='interpolated values',linestyle='--')
 axs[1].step(t_grids, u_opt[:,9], label='initial values',linestyle='-')
 plt.show()
+
 # %%

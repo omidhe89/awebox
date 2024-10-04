@@ -42,7 +42,7 @@ class Model(object):
         self.__status = 'Model not yet built.'
         self.__outputs = None
         self.__type = 'Model'
-
+        pass
     def build(self, options, architecture):
 
         awelogger.logger.info('Building model...')
@@ -87,7 +87,6 @@ class Model(object):
 
         return None
 
-
     def __generate_system_dynamics(self,options):
 
         [variables,
@@ -120,7 +119,6 @@ class Model(object):
         self.__dynamics = self.__constraints_list.get_function(options, self.__variables, self.__parameters, 'eq')
 
         return None
-
 
     def get_dae(self):
         """Generate DAE object for casadi integrators, rootfinder,...
@@ -374,3 +372,8 @@ class Model(object):
     @property
     def constraints_fun(self):
         return self.__constraints_list.get_function(self.__options, self.__variables, self.__parameters, 'ineq')
+
+
+    @property
+    def generate_system_dynamics(self, options):
+        return self.__generate_system_dynamics(options)

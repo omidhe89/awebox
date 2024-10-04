@@ -135,6 +135,10 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     m_aero_body = base_aerodynamic_quantities['m_aero_body']
     kite_dcm = base_aerodynamic_quantities['kite_dcm']
     q = base_aerodynamic_quantities['q']
+    m_ctrl_star = base_aerodynamic_quantities['m_ctrl_star']
+    m_ctrl_delta_c1 = base_aerodynamic_quantities['m_ctrl_delta_c1']
+    m_ctrl_delta_c2 = base_aerodynamic_quantities['m_ctrl_delta_c2']
+    m_ctrl_delta_c3 = base_aerodynamic_quantities['m_ctrl_delta_c3']
 
     f_lift_earth_overwrite = options['aero']['overwrite']['f_lift_earth']
     if f_lift_earth_overwrite is not None:
@@ -192,6 +196,10 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
     if int(options['kite_dof']) == 6:
         outputs['aerodynamics']['m_aero_body' + str(kite)] = m_aero_body
+        outputs['aerodynamics']['m_ctrl_star_body' + str(kite)] = m_ctrl_star
+        outputs['aerodynamics']['m_ctrl_delta_c1_body' + str(kite)] = m_ctrl_delta_c1
+        outputs['aerodynamics']['m_ctrl_delta_c2_body' + str(kite)] = m_ctrl_delta_c2 
+        outputs['aerodynamics']['m_ctrl_delta_c3_body' + str(kite)] = m_ctrl_delta_c3
 
     outputs['aerodynamics']['mach' + str(kite)] = get_mach(options, atmos, air_velocity, q)
     outputs['aerodynamics']['reynolds' + str(kite)] = get_reynolds(options, atmos, air_velocity, q, parameters)

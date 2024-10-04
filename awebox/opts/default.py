@@ -462,7 +462,8 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart', True,         ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
-
+        ### ndi options
+        ('ndi', None,  None,    'N',            10,                 ('controller simulation time', None), 'x'),
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'axisfont',    {'size': '20'}, ('???', None), 'x'),

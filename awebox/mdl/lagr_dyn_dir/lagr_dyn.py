@@ -173,6 +173,10 @@ def momentum_correction(options, generalized_coordinates, system_variables, outp
 
 
 def generate_rotational_dynamics(options, variables, f_nodes, parameters, outputs, architecture):
+    
+    if 'model_for_control' not in list(outputs.keys()):
+        outputs['model_for_control'] = {}
+    
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
@@ -219,7 +223,15 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
                                         cstr_type='eq')
         cstr_list.append(ortho_cstr)
 
-    return cstr_list, outputs
+        f_rot = cas.mtimes(cas.inv(j_inertia), outputs['aerodynamics']['m_ctrl_star_body' + str(kite)] - omega_cross_J_omega)
+        g_rot =  cas.mtimes(cas.inv(j_inertia), cas.horzcat(outputs['aerodynamics']['m_ctrl_delta_c1_body' + str(kite)], outputs['aerodynamics']['m_ctrl_delta_c2_body' + str(kite)], outputs['aerodynamics']['m_ctrl_delta_c3_body' + str(kite)]))
+        outputs['model_for_control']['f_rot' + str(kite)] = f_rot
+        #outputs['model_for_control']['g_rot' + str(kite)] = g_rot
+        outputs['model_for_control']['g_rot_c1' + str(kite)] = g_rot[:,0]
+        outputs['model_for_control']['g_rot_c2' + str(kite)] = g_rot[:,1]
+        outputs['model_for_control']['g_rot_c3' + str(kite)] = g_rot[:,2]
+        
+        return cstr_list, outputs
 
 
 def generate_generalized_coordinates(system_variables, system_gc):

@@ -32,6 +32,7 @@ and related models.
 
 import casadi.tools as ct
 import awebox.pmpc as pmpc
+import awebox.ndi as ndi
 import awebox.tools.integrator_routines as awe_integrators
 import awebox.viz.visualization as visualization
 import awebox.viz.tools as viz_tools
@@ -41,7 +42,7 @@ import copy
 import numpy as np
 
 class Simulation:
-    def __init__(self, trial, sim_type, ts, options_seed):
+    def __init__(self, trial, sim_type, ctrl_type ,ts, options_seed):
         """ Constructor.
         """
 
@@ -49,12 +50,17 @@ class Simulation:
             raise ValueError('Chosen simulation type not valid: {}'.format(sim_type))
 
         self.__sim_type = sim_type
+        self.__ctrl_type = ctrl_type
         self.__trial = trial
         self.__ts = ts
         options = awebox.opts.options.Options()
         options.fill_in_seed(options_seed)
+        if ctrl_type == 'mpc':
+            self.__mpc_options = options['mpc']
+        else:
+            self.__ctrl_options = options['ndi']
+
         self.__sim_options = options['sim']
-        self.__mpc_options = options['mpc']
         self.__build()
 
         return None
@@ -80,8 +86,10 @@ class Simulation:
 
         # generate mpc controller
         if self.__sim_type == 'closed_loop':
-
-            self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
+            if self.__ctrl_type == 'mpc':
+                self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
+            else:
+                self.__ndi = ndi.Ndi(self.__ctrl_options, self.__ts, self.__trial)
 
 
         #  initialize and build visualization
@@ -233,7 +241,7 @@ class Simulation:
         """ plot visualization
         """
 
-        self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
+        self.__trial.options['visualization']['cosmetics']['plot_ref'] = False
         self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None

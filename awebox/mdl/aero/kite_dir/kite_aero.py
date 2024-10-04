@@ -97,18 +97,24 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
             framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture)
 
         else:
-            f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm = six_dof_kite.get_force_and_moment_vector(
+            f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm, ctrl_star_vec, ctrl_delta_vec = six_dof_kite.get_force_and_moment_vector(
                 options, variables_si, atmos, wind, architecture, parameters, kite, outputs)
             framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture,
                                                     f_found_vector, f_found_frame)
             framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
                                                       m_found_vector, m_found_frame)
+            
+            # paramererization of aerodynamics for controller design
+            framed_ctrl_star = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                      ctrl_star_vec, m_found_frame)
+            framed_ctrl_delta = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                      ctrl_delta_vec, m_found_frame)
 
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
         awelogger.logger.error(message)
 
-    return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
+    return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq, framed_ctrl_star, framed_ctrl_delta
 
 def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
 
@@ -120,8 +126,11 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
 
-        framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq = get_framed_forces_and_moments(options, variables_si, atmos, wind, architecture, parameters, kite, outputs)
+        framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq, m_ctrl_star, m_ctrl_delta = get_framed_forces_and_moments(options, variables_si, atmos, wind, architecture, parameters, kite, outputs)
         m_aero_body = framed_moments['body']
+        m_ctrl_star_body = m_ctrl_star['body']
+        m_ctrl_delta_body = m_ctrl_delta['body']
+
         u_eff = vect_op.smooth_norm(vec_u_eff)
 
         f_aero_body = framed_forces['body']
@@ -196,6 +205,10 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         base_aerodynamic_quantities['kite_dcm'] = kite_dcm
         base_aerodynamic_quantities['q'] = q
         base_aerodynamic_quantities['dq'] = dq
+        base_aerodynamic_quantities['m_ctrl_star'] = m_ctrl_star_body
+        base_aerodynamic_quantities['m_ctrl_delta_c1'] = m_ctrl_delta_body[:,0]
+        base_aerodynamic_quantities['m_ctrl_delta_c2'] = m_ctrl_delta_body[:,1]
+        base_aerodynamic_quantities['m_ctrl_delta_c3'] = m_ctrl_delta_body[:,2]
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables_si, parameters, base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outputs)

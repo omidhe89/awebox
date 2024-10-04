@@ -83,7 +83,7 @@ tracking_options = copy.deepcopy(options)
 tracking_options['user_options.kite_standard'] = awe.megawes_data.data_dict('CFD')
 # set MPC options
 ts = 0.1 # sampling time (length of one MPC window)
-N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
+N_mpc = 10 # MPC horizon (number of MPC windows in prediction horizon)
 N_sim = 250  # closed-loop simulation steps
 
 # MPC options
@@ -117,7 +117,7 @@ tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['init
 # options['sim.sys_params']['wind']['u_ref'] = 1.0*options['sim.sys_params']['wind']['u_ref']
 
 # make simulator
-closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, tracking_options)
+closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', 'ndi' , ts, tracking_options)
 closed_loop_sim.run(N_sim)
 closed_loop_sim.plot(['isometric','states'])
 plt.show()

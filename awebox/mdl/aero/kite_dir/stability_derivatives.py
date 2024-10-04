@@ -48,10 +48,21 @@ def stability_derivatives(options, alpha, beta, airspeed, omega, delta, paramete
 
     # concatenate
     CF = distribute_force_coeffs(coeffs, force_frame)
-    CM = distribute_moment_coeffs(coeffs, moment_frame)
+    CF_star = cas.substitute(CF, delta, cas.SX.zeros(3,1))
+    tmp_expr_F = CF - CF_star
+    CF_delta = cas.simplify(cas.jacobian(tmp_expr_F, delta))
 
-    force_coeff_info = {'coeffs': CF, 'frame':force_frame}
-    moment_coeff_info = {'coeffs': CM, 'frame':moment_frame}
+    CM = distribute_moment_coeffs(coeffs, moment_frame)
+    CM_star = cas.substitute(CM, delta, cas.SX.zeros(3,1))
+    tmp_expr_M = CM - CM_star
+    CM_delta = cas.simplify(cas.jacobian(tmp_expr_M, delta))
+
+
+    # force_coeff_info = {'coeffs': CF, 'frame':force_frame}
+    # moment_coeff_info = {'coeffs': CM, 'frame':moment_frame}
+
+    force_coeff_info = {'coeffs': CF_star + cas.mtimes(CF_delta, delta), 'frame':force_frame , 'ctrl':{'star': CF_star, 'delta': CF_delta}}
+    moment_coeff_info = {'coeffs': CM_star + cas.mtimes(CM_delta, delta), 'frame':moment_frame, 'ctrl':{'star': CM_star, 'delta': CM_delta}}
 
     return force_coeff_info, moment_coeff_info
 
@@ -194,7 +205,6 @@ def collect_contributions(parameters, inputs):
                 
                 contrib_from_input = weight * cas.mtimes(deriv_stack.T, input_stack)
                 coeffs[deriv_name] += contrib_from_input
-
     return coeffs
 
 def get_p_q_r(airspeed, omega, parameters, named_frame):
