@@ -170,6 +170,11 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs = power_balance_outputs(options, outputs, system_variables,
                                     parameters, architecture)  # power balance must be after tether stress inequality
 
+    # rotation dynamics elements
+    rot_dyn_dict = {}
+    for kite in architecture.kite_nodes:
+        rot_dyn_dict['F' + str(kite)] = cas.Function('F_Fun' + str(kite), [system_variables['scaled']['x'], parameters['theta0']], [outputs['model_for_control']['f_rot' + str(kite)]])
+        rot_dyn_dict['G' + str(kite)] = cas.Function('G_Fun' + str(kite), [system_variables['scaled']['x'], parameters['theta0']], [cas.horzcat(outputs['model_for_control']['g_rot_c1' + str(kite)], outputs['model_for_control']['g_rot_c2' + str(kite)], outputs['model_for_control']['g_rot_c3' + str(kite)])])
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
 
@@ -187,7 +192,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         out_dict,
         integral_outputs,
         integral_outputs_fun,
-        integral_scaling]
+        integral_scaling,
+        rot_dyn_dict]
 
 
 def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):
@@ -932,8 +938,7 @@ def generate_si_variables(scaling_options, variables):
     for var_type in list(scaling.keys()):
         subkeys = struct_op.subkeys(variables, var_type)
 
-        variables_si[var_type] = cas.struct_SX(
-            [cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
+        variables_si[var_type] = cas.struct_SX([cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
 
     return variables_si, scaling_options
 

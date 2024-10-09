@@ -688,13 +688,7 @@ class Pmpc(object):
         w = ct.SX.sym('w', self.__nx+self.__nu+self.__nz)
         w_ref = ct.SX.sym('w_ref', self.__nx+self.__nu+self.__nz)
         W = ct.SX.sym('W', self.__nx+self.__nu+self.__nz)
-        f_t = ct.mtimes(
-                ct.mtimes(
-                    (w-w_ref).T,
-                    ct.diag(W)
-                ),
-                (w-w_ref)
-        )
+        f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref))
 
         return ct.Function('tracking_cost', [w, w_ref, W], [f_t])
 

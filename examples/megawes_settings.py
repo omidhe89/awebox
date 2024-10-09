@@ -19,7 +19,7 @@ def set_megawes_path_generation_settings(aero_model, options):
     options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
     options['model.tether.use_wound_tether'] = False # don't model generator inertia
-    options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
+    options['model.tether.control_var'] = 'dddl_t' # tether acceleration control
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
 
@@ -87,7 +87,7 @@ def set_megawes_path_tracking_settings(aero_model, options):
     options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
     options['model.tether.use_wound_tether'] = False # don't model generator inertia
-    options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
+    options['model.tether.control_var'] = 'dddl_t' # tether acceleration control
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
 

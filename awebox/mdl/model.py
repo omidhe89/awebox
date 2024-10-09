@@ -98,7 +98,8 @@ class Model(object):
         outputs_dict,
         integral_outputs,
         integral_outputs_fun,
-        integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
+        integral_scaling,
+        rot_dyn_dict] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
 
         self.__kite_dof = options['kite_dof']
         self.__kite_geometry = {} #options['geometry']
@@ -113,7 +114,7 @@ class Model(object):
         self.__integral_outputs = integral_outputs
         self.__integral_outputs_fun = integral_outputs_fun
         self.__integral_scaling = integral_scaling
-
+        self.__rot_dyn_dict = rot_dyn_dict
         self.__output_components = [outputs_fun, outputs_dict]
 
         self.__dynamics = self.__constraints_list.get_function(options, self.__variables, self.__parameters, 'eq')
@@ -377,3 +378,13 @@ class Model(object):
     @property
     def generate_system_dynamics(self, options):
         return self.__generate_system_dynamics(options)
+    
+
+    @property
+    def rot_dyn_dict(self):
+        return self.__rot_dyn_dict
+    
+    @rot_dyn_dict.setter
+    def rot_dyn_dict(self, value):
+        awelogger.logger.warning('Cannot set rot_dyn_dict object.')
+    

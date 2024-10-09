@@ -44,7 +44,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 30 # approximately 40 per loop
+options['nlp.n_k'] = 40 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -78,7 +78,7 @@ ctrl_strategy  = 'closed_loop' #  choose between: 'open_loop'  & 'closed loop'
 if ctrl_strategy == 'closed_loop':
     t_end = 1*trial.visualization.plot_dict['theta']['t_f']
 else:
-    t_end = 2*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
 
 ctrl_type = 'ndi' # choose between 'ndi' & 'mpc
 # adjust options for path tracking (incl. aero model)
@@ -89,7 +89,7 @@ tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
 
 # set MPC options
 N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
-N_sim = 300  # closed-loop simulation steps
+N_sim = 40  # closed-loop simulation steps
 ts = t_end/N_sim # sampling time (length of one MPC window)
 
 # MPC options
@@ -110,7 +110,9 @@ if ctrl_type == 'mpc':
     tracking_options['mpc.terminal_point_constr'] = False
 else:
     tracking_options['ndi.N'] = N_sim
-
+    tracking_options['ndi.plot_flag'] = False
+    tracking_options['ndi.ref_interpolator'] = 'poly'
+    tracking_options['ndi.u_param'] = 'zoh'
 
 # simulation options
 N_dt = 20 # integrator steps within one sampling time
@@ -128,7 +130,7 @@ tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['init
 # make simulator
 
 sim = awe.sim.Simulation(trial, ctrl_strategy, ctrl_type ,ts, tracking_options)
-if ctrl_strategy == 'open_loop':
+if ctrl_strategy == 'open_loop' or (ctrl_strategy == 'closed_loop' and ctrl_type == 'ndi'):
     t_grids_new = np.linspace(0, t_end, N_sim).squeeze()
     u_opt = np.array(trial.solution_dict['V_opt']['u']).squeeze()
     t_grids = np.array(trial.solution_dict['time_grids']['u'].full()).squeeze()
@@ -148,8 +150,10 @@ if ctrl_strategy == 'open_loop':
 else:
     sim.run(N_sim)
 
+        
 
-sim.plot(['isometric'])
+
+sim.plot(['isometric', 'states' ,'aero_coefficients', 'aero_dimensionless'])
 fig, axs = plt.subplots(2,1)
 axs[0].plot(t_grids_new, interp_u[:,5:8], label='interpolated values',linestyle='--')
 axs[0].step(t_grids, u_opt[:,5:8], label='initial values',linestyle='-')

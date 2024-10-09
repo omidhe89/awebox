@@ -129,9 +129,16 @@ class Simulation:
         for i in range(n_sim):
 
             # get (open/closed-loop) controls
-            if self.__sim_type == 'closed_loop':
+            if self.__sim_type == 'closed_loop' and self.__ctrl_type == 'mpc':
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
                 #z0 = self.__mpc.z0
+            elif self.__sim_type == 'closed_loop' and self.__ctrl_type == 'ndi':
+                u0 = u_sim[i,:]
+                # update deflections according to NDI
+                dx0 = self.__ndi.step(x0, self.__ctrl_options['plot_flag'])
+                # correct deflection states based on NDI modification
+                x0 += dx0
+                
             elif self.__sim_type == 'open_loop':
                 u0 = u_sim[i,:]
             # simulate
@@ -182,7 +189,10 @@ class Simulation:
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 self.__theta[name] = self.__trial.optimization.V_opt['theta',name]
-        self.__theta['t_f'] = self.__ts
+        if self.__ctrl_type == 'mpc':
+            self.__theta['t_f'] = self.__ts
+        else:
+            self.__theta['t_f'] = self.__ts * n_sim
         self.__parameters_num = self.__trial.model.parameters(0.0)
         self.__parameters_num['theta0'] = self.__trial.optimization.p_fix_num['theta0']
 
