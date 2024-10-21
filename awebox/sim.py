@@ -33,6 +33,7 @@ and related models.
 import casadi.tools as ct
 import awebox.pmpc as pmpc
 import awebox.ndi as ndi
+import awebox.oc as oc
 import awebox.tools.integrator_routines as awe_integrators
 import awebox.viz.visualization as visualization
 import awebox.viz.tools as viz_tools
@@ -42,14 +43,13 @@ import copy
 import numpy as np
 
 class Simulation:
-    def __init__(self, trial, sim_type, ctrl_type ,ts, options_seed):
+    def __init__(self, trial, ctrl_type ,ts, options_seed):
         """ Constructor.
         """
 
-        if sim_type not in ['closed_loop', 'open_loop']:
-            raise ValueError('Chosen simulation type not valid: {}'.format(sim_type))
+        if ctrl_type not in ['open_loop', 'mpc', 'ndi']:
+            raise ValueError('Chosen simulation type not valid: {}'.format(ctrl_type))
 
-        self.__sim_type = sim_type
         self.__ctrl_type = ctrl_type
         self.__trial = trial
         self.__ts = ts
@@ -57,10 +57,24 @@ class Simulation:
         options.fill_in_seed(options_seed)
         if ctrl_type == 'mpc':
             self.__mpc_options = options['mpc']
-        else:
+            self.__N = self.__mpc['N']
+        elif ctrl_type =='ndi':
             self.__ctrl_options = options['ndi']
+            self.__N = self.__ctrl_options['N']
+        else:
+            self.__oc_options = options['oc']
+            self.__N = self.__oc_options['N']
 
+        
+        
         self.__sim_options = options['sim']
+
+        # store model data
+        self.__var_list = ['x', 'z', 'u']
+        self.__nx = self.__trial.model.variables['x'].shape[0]
+        self.__nu = self.__trial.model.variables['u'].shape[0]
+        self.__nz = self.__trial.model.variables['z'].shape[0]
+
         self.__build()
 
         return None
@@ -74,23 +88,18 @@ class Simulation:
         if sys_params is None:
             sys_params = self.__trial.options['solver']['initialization']['sys_params_num']
         model = self.__trial.generate_optimal_model(sys_params)
-        self.__F = awe_integrators.rk4root(
-            'F',
-            model['dae'],
-            model['rootfinder'],
-            {'tf': self.__ts/model['t_f'],
-            'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
-            )
+        self.__F = awe_integrators.rk4root('F', model['dae'], model['rootfinder'], {'tf': self.__ts/model['t_f'], 'number_of_finite_elements':self.__sim_options['number_of_finite_elements']})
+        
         self.__dae = self.__trial.model.get_dae()
         self.__dae.build_rootfinder()
 
         # generate mpc controller
-        if self.__sim_type == 'closed_loop':
-            if self.__ctrl_type == 'mpc':
-                self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
-            else:
-                self.__ndi = ndi.Ndi(self.__ctrl_options, self.__ts, self.__trial)
-
+        if self.__ctrl_type == 'mpc':
+            self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
+        elif self.__ctrl_type =='ndi':
+            self.__ndi = ndi.Ndi(self.__ctrl_options, self.__ts, self.__trial)
+        else:
+            self.__oc = oc.OC(self.__oc_options, self.__ts, self.__trial)
 
         #  initialize and build visualization
         self.__visualization = visualization.Visualization()
@@ -129,18 +138,17 @@ class Simulation:
         for i in range(n_sim):
 
             # get (open/closed-loop) controls
-            if self.__sim_type == 'closed_loop' and self.__ctrl_type == 'mpc':
+            if self.__ctrl_type == 'mpc':
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
                 #z0 = self.__mpc.z0
-            elif self.__sim_type == 'closed_loop' and self.__ctrl_type == 'ndi':
+            elif self.__ctrl_type == 'ndi':
                 u0 = u_sim[i,:]
                 # update deflections according to NDI
                 dx0 = self.__ndi.step(x0, self.__ctrl_options['plot_flag'])
                 # correct deflection states based on NDI modification
-                x0 += dx0
-                
-            elif self.__sim_type == 'open_loop':
-                u0 = u_sim[i,:]
+                x0 = dx0
+            elif self.__ctrl_type == 'open_loop':
+                u0 = self.__oc.step(i).full()
             # simulate
             var_next = self.__F(x0 = x0, p = u0, z0 = z0)
 
@@ -162,25 +170,26 @@ class Simulation:
             x0 = self.__trial.optimization.V_opt['x',0]
 
         # set-up open loop controls
-        if self.__sim_type == 'open_loop':
-            values_ip_u = []
-            interpolator = self.__trial.nlp.Collocation.build_interpolator(
-                self.__trial.options['nlp'],
-                self.__trial.optimization.V_opt)
-            T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-            t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
-            self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
-            for name in list(self.__trial.model.variables_dict['u'].keys()):
-                for j in range(self.__trial.model.variables_dict['u'][name].shape[0]):
-                    if self.__trial.options['nlp']['collocation']['u_param'] == 'poly':
-                        values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
-                        self.__u_sim = ct.horzcat(*values_ip_u)
-                    else:
-                        self.__u_sim = u_sim
-                        # values_ip_u.append(self.__trial.optimization.V_opt['u',j])
+        # if self.__ctrl_type == 'open_loop':
+        #     values_ip_u = []
+        
 
+        #     T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+        #     self.__t_grid_u = ct.DM(np.linspace(0, n_sim*self.__ts, n_sim))
+        #     self.__t_grid_u = ct.reshape(self.__t_grid_u.T, self.__t_grid_u.numel(),1).full()
+        #     self.__t_grid_u = ct.vertcat(*list(map(lambda x: x % T_ref, self.__t_grid_u))).full().squeeze()
+        #     time_grids = {}
+        #     time_grids['u'] = self.__trial.visualization.plot_dict['time_grids']['u']
+        #     time_grids['ip'] = self.__t_grid_u
+        #     for name in list(self.__trial.model.variables_dict['u'].keys()):
+        #         for dim in range(self.__trial.model.variables_dict['u'][name].shape[0]):
+        #             values_ip_u = viz_tools.sample_and_hold_controls(time_grids, self.__trial.optimization.V_opt['u',:,name,dim])
+
+        #     values_ip_u = ct.horzcat(*values_ip_u)
             
-
+        
+        
+        # self.__u_sim = values_ip_u
         # initialize algebraic variables for integrator
         self.__z0 = 0.1
 
@@ -273,6 +282,8 @@ class Simulation:
 
         for name in self.__visualization.plot_dict['integral_variables']:
             self.__visualization.plot_dict['integral_outputs'][name][0] = ct.vertcat(*self.__visualization.plot_dict['integral_outputs'][name][0])
+
+
 
     @property
     def trial(self):

@@ -446,7 +446,7 @@ def set_default_options(default_user_options, help_options):
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),
         ('sim', None,  None,    'sys_params',                 None,               ('system parameters dict', None), 'x'),
-
+        
         ### mpc options
         ('mpc', None,  None,    'N',            10,                 ('MPC horizon', None), 'x'),
         ('mpc', None,  None,    'scheme',      'radau',             ('NLP collocation scheme', ['legendre','radau']), 'x'),
@@ -466,8 +466,13 @@ def set_default_options(default_user_options, help_options):
         ('ndi', None,  None,    'N',            10,                 ('controller simulation time', None), 'x'),
         ('ndi', None,  None,    'ctrl_params',  np.array([0.1, 0.1, 0.1]), ('rotation controller parameters', None), 'x'),
         ('ndi', None,  None,    'plot_flag',    False,              ('ndi plot solution for each step', None), 'x'),
-        ('ndi', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
+        ('ndi', None,  None,    'ref_interpolator', 'spline',        ('periodic reference interpolation method', None), 'x'),
         ('ndi', None,  None,    'u_param',      'zoh',              ('control parametrization', ['zoh', 'poly']), 'x'),
+        # open loop options
+        ('oc', None,  None,     'ref_interpolator', 'spline',        ('periodic reference interpolation method', None), 'x'),
+        ('oc', None,  None,     'u_param',      'zoh',              ('open-loop parametrization', ['zoh', 'poly']), 'x'),
+        ('oc', None,  None,     'N',            10,                 ('open-loop simulation time', None), 'x'),
+        ('oc', None,  None,    'plot_flag',    False,              ('oc plot solution for each step', None), 'x'),
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'axisfont',    {'size': '20'}, ('???', None), 'x'),

@@ -283,12 +283,7 @@ def generate_optimal_model(trial, param_options = None, external_forces = False)
 
     # create dae object based on numerical parameters
     import awebox.mdl.dae as dae
-    model_dae = dae.Dae(
-        variables,
-        parameters,
-        trial.model.dynamics,
-        quadrature,
-        param = 'num')
+    model_dae = dae.Dae(variables, parameters, trial.model.dynamics, quadrature, param = 'num')
 
     # build model rootfinder
     model_dae.build_rootfinder()
