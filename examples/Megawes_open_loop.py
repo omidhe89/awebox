@@ -66,7 +66,7 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 
-trial.plot(['isometric', 'states'])
+trial.plot(['isometric', 'states', 'controls'])
 plt.show()
 
 
@@ -80,13 +80,13 @@ N_sim = 200  # closed-loop simulation steps
 
 ctrl_type = 'ndi' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
-    t_end = 1.5*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
     tracking_options['oc.ref_interpolator'] = 'spline'
     tracking_options['oc.u_param'] = 'zoh'
     tracking_options['oc.N'] = N_sim
     tracking_options['oc.plot_flag'] = True
 elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
-    t_end = 1.5*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
     if ctrl_type == 'mpc':
         # set MPC options
         N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
@@ -109,7 +109,7 @@ elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
         tracking_options['ndi.plot_flag'] = False
         tracking_options['ndi.ref_interpolator'] = 'spline'
         tracking_options['ndi.u_param'] = 'zoh'
-
+        tracking_options['ndi.ctrl_params'] = 1 * np.array([-10, -50, -25, .15])
 
 
 
@@ -136,7 +136,7 @@ sim.run(N_sim)
         
 
 
-sim.plot(['isometric', 'states', 'controls' ,'aero_coefficients', 'aero_dimensionless'])
+sim.plot(['quad', 'states', 'controls'])
 
 
 

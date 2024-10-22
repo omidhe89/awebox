@@ -42,10 +42,11 @@ class Ndi():
     
         self.__build_controller(architecture)
         self.__create_reference_interpolator()
+        # create reference for all simulation time
         self.__w0 = self.get_reference(*self.__compute_time_grids(0))
 
         self.u_ndi = []
-        self.A_des = 0.01 * cas.diag(sim_options['ctrl_params'])
+        self.A_des = cas.diag(sim_options['ctrl_params'][0:3])
      
     def __build_controller(self, architecture):
 
@@ -84,13 +85,14 @@ class Ndi():
 
     def rotation_ndi_controller(self, x0_scaled, i, parameters, architecture):
         # update reference 
-        err = self.__w0['x'][i][6:9] - x0_scaled[6:9]
-        nu = self.A_des @ (err)
+        err =  x0_scaled[6:9] - self.__w0['x'][i][6:9] 
+        nu = self.A_des @ err
         u_ndi = []
         for kite in architecture.kite_nodes:
             F = self.F[kite](x0_scaled, parameters)
             G = self.G[kite](x0_scaled, parameters)
-            u_ndi = cas.inv(G) @ (nu - F)
+            delta_ndi = cas.inv(G) @ (nu - F)
+            u_ndi = cas.diag(self.__ndi_options['ctrl_params'][-1]) @ (delta_ndi - x0_scaled[18:21])
         return u_ndi
     
     def step(self, x0, i):
@@ -103,8 +105,9 @@ class Ndi():
         u0 = self.__w0['u'][i]
         dx_delta = self.rotation_ndi_controller(x0, i, self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
         # create a casadi function including ndi parameters -> then evaluate the function here numerically
-        x_updated = cas.vertcat(x0[0:18], dx_delta, x0[21:])
-        return u0, x_updated
+        u_updated = cas.vertcat(u0[0:6], u0[6:9] + dx_delta, u0[9:])
+
+        return u_updated, x0
 
     def __create_reference_interpolator(self):
         """ Create time-varying reference generator for tracking on interpolation of
@@ -156,15 +159,12 @@ class Ndi():
                         else:
                             self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points)
                     elif var_type == 'u' and self.__ndi_options['u_param'] == 'zoh':   
-                        # values = V_opt['u',:,name,j]
-                        # float_values = [float(value.full()) for value in values]
                         control = V_opt['u',:,name,j]
                         values = viz_tools.sample_and_hold_controls(plot_dict['time_grids'], control)
                         time_grid = plot_dict['time_grids']['ip']
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = cas.Function(name+str(j), [cas.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
                         else:
-                            # self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [time_grid_u_list], float_values, {}).map(n_points_u)
                             self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [time_grid], values, {}).map(self.__N)
         
         def spline_interpolator(t_grid, name, j, var_type):
@@ -176,7 +176,6 @@ class Ndi():
             return values_ip
 
         return spline_interpolator
-
 
     def __compute_time_grids(self, index):
             """ Compute NLP time grids based in periodic index
@@ -191,7 +190,6 @@ class Ndi():
             t_grid_u = cas.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
             return t_grid, t_grid_x, t_grid_u
 
-
     def get_reference(self, t_grid, t_grid_x, t_grid_u):
         """ Interpolate reference on NLP time grids.
         """
@@ -203,8 +201,14 @@ class Ndi():
                 for dim in range(self.__pocp_trial.model.variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim, var_type))
-                    elif (var_type == 'u') and self.__ndi_options['u_param']:
-                        ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim, var_type))
+                    elif (var_type == 'u') and (self.__ndi_options['u_param'] == 'zoh'):
+                        if self.__ndi_options['ref_interpolator'] == 'poly':
+                            # it is wrong and need to be completed!
+                            vector = self.__interpolator(t_grid_u, name, dim, var_type)
+                            summed_vector = cas.sum2(cas.reshape(vector,self.__N ,self.__pocp_trial.nlp.d))
+                            ip_dict[var_type].append(summed_vector)
+                        else:
+                            ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim, var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim, var_type))
             if self.__ndi_options['ref_interpolator'] == 'poly':

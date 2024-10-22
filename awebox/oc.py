@@ -111,7 +111,6 @@ class OC():
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
                         else:
-                            # self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [time_grid_u_list], float_values, {}).map(n_points_u)
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [time_grid], values, {}).map(self.__N)
         
         def spline_interpolator(t_grid, name, j, var_type):
@@ -150,7 +149,7 @@ class OC():
                 for dim in range(self.__pocp_trial.model.variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim, var_type))
-                    elif (var_type == 'u') and self.__oc_options['u_param']:
+                    elif (var_type == 'u') and self.__oc_options['u_param'] == 'zoh':
                         ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim, var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim, var_type))

@@ -464,7 +464,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
         ### ndi options
         ('ndi', None,  None,    'N',            10,                 ('controller simulation time', None), 'x'),
-        ('ndi', None,  None,    'ctrl_params',  np.array([0.1, 0.1, 0.1]), ('rotation controller parameters', None), 'x'),
+        ('ndi', None,  None,    'ctrl_params',  np.array([0.1, 0.4, 0.25, 0.5]), ('rotation controller parameters', None), 'x'),
         ('ndi', None,  None,    'plot_flag',    False,              ('ndi plot solution for each step', None), 'x'),
         ('ndi', None,  None,    'ref_interpolator', 'spline',        ('periodic reference interpolation method', None), 'x'),
         ('ndi', None,  None,    'u_param',      'zoh',              ('control parametrization', ['zoh', 'poly']), 'x'),
