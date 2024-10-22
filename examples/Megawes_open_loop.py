@@ -38,12 +38,12 @@ options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'uniform'
-options['user_options.wind.u_ref'] = 10.
+options['user_options.wind.u_ref'] = 12.
 options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 40 # approximately 40 per loop
+options['nlp.n_k'] = 100 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -76,17 +76,17 @@ plt.show()
 tracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 150  # closed-loop simulation steps
+N_sim = 200  # closed-loop simulation steps
 
-ctrl_type = 'open_loop' # choose between 'ndi', 'mpc & 'open_loop' 
+ctrl_type = 'ndi' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
-    t_end = 1.3*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.5*trial.visualization.plot_dict['theta']['t_f']
     tracking_options['oc.ref_interpolator'] = 'spline'
     tracking_options['oc.u_param'] = 'zoh'
     tracking_options['oc.N'] = N_sim
     tracking_options['oc.plot_flag'] = True
 elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
-    t_end = 2.0*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.5*trial.visualization.plot_dict['theta']['t_f']
     if ctrl_type == 'mpc':
         # set MPC options
         N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
@@ -131,37 +131,15 @@ tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['init
 # make simulator
 
 sim = awe.sim.Simulation(trial, ctrl_type ,ts, tracking_options)
-# if ctrl_type == 'open_loop' or  ctrl_type == 'ndi':
-#     t_grids_new = np.linspace(0, t_end, N_sim).squeeze()
-#     u_opt = np.array(trial.solution_dict['V_opt']['u']).squeeze()
-#     t_grids = np.array(trial.solution_dict['time_grids']['u'].full()).squeeze()
-#     interp_u = np.zeros((N_sim, trial.model.variables_dict['u'].shape[0])) #
-#     for i in range(trial.model.variables_dict['u'].shape[0]):  
-#         i_elements = u_opt[:,i]      
-#         # Create the periodic interpolation function
-#         # ***** interp1 *******
-#         # interp_func = interp1d(t_grids, i_elements, kind='slinear', bounds_error=False, fill_value='extrapolate')
-#         # interp_u[:,i] = interp_func(t_grids_new)
-#         # ***** CubicSpline *****
-#         cs = CubicSpline(t_grids.squeeze(), i_elements.squeeze(), axis=3,  bc_type='periodic', extrapolate='periodic')
-#         interp_u[:,i] = cs(t_grids_new)
-
-#         # interp_u[:,i] = np.interp(t_grids_new, t_grids.squeeze(), i_elements.squeeze(), period=t_end)
-#     sim.run(N_sim) #interp_u
-# else:
 sim.run(N_sim)
 
         
 
 
 sim.plot(['isometric', 'states', 'controls' ,'aero_coefficients', 'aero_dimensionless'])
-# fig, axs = plt.subplots(2,1)
-# axs[0].plot(t_grids_new, interp_u[:,5:8], label='interpolated values',linestyle='--')
-# axs[0].step(t_grids, u_opt[:,5:8], label='initial values',linestyle='-')
 
-# axs[1].plot(t_grids_new, interp_u[:,9], label='interpolated values',linestyle='--')
-# axs[1].step(t_grids, u_opt[:,9], label='initial values',linestyle='-')
-# plt.show()
+
+
 
 
 

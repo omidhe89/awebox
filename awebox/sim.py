@@ -142,11 +142,8 @@ class Simulation:
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
                 #z0 = self.__mpc.z0
             elif self.__ctrl_type == 'ndi':
-                u0 = u_sim[i,:]
                 # update deflections according to NDI
-                dx0 = self.__ndi.step(x0, self.__ctrl_options['plot_flag'])
-                # correct deflection states based on NDI modification
-                x0 = dx0
+                u0, x0 = self.__ndi.step(x0, i)
             elif self.__ctrl_type == 'open_loop':
                 u0 = self.__oc.step(i).full()
             # simulate
@@ -169,27 +166,6 @@ class Simulation:
         if x0 is None:
             x0 = self.__trial.optimization.V_opt['x',0]
 
-        # set-up open loop controls
-        # if self.__ctrl_type == 'open_loop':
-        #     values_ip_u = []
-        
-
-        #     T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-        #     self.__t_grid_u = ct.DM(np.linspace(0, n_sim*self.__ts, n_sim))
-        #     self.__t_grid_u = ct.reshape(self.__t_grid_u.T, self.__t_grid_u.numel(),1).full()
-        #     self.__t_grid_u = ct.vertcat(*list(map(lambda x: x % T_ref, self.__t_grid_u))).full().squeeze()
-        #     time_grids = {}
-        #     time_grids['u'] = self.__trial.visualization.plot_dict['time_grids']['u']
-        #     time_grids['ip'] = self.__t_grid_u
-        #     for name in list(self.__trial.model.variables_dict['u'].keys()):
-        #         for dim in range(self.__trial.model.variables_dict['u'][name].shape[0]):
-        #             values_ip_u = viz_tools.sample_and_hold_controls(time_grids, self.__trial.optimization.V_opt['u',:,name,dim])
-
-        #     values_ip_u = ct.horzcat(*values_ip_u)
-            
-        
-        
-        # self.__u_sim = values_ip_u
         # initialize algebraic variables for integrator
         self.__z0 = 0.1
 

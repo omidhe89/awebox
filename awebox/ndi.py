@@ -34,27 +34,18 @@ class Ndi():
         fixed_params['t_f'] = self.__N*self.__ts
         options['user_options.trajectory.fixed_params'] = fixed_params
 
-        
-
         self.G = []
         self.F = []
 
-
         self.__trial = awe.Trial(seed = options)
         architecture = archi.Architecture(self.__trial.options['user_options']['system_model']['architecture'])
-        
-        
-        
+    
         self.__build_controller(architecture)
-        
         self.__create_reference_interpolator()
-        # periodic indexing
-        self.__index = 0
+        self.__w0 = self.get_reference(*self.__compute_time_grids(0))
 
-       
-        
         self.u_ndi = []
-        self.A_des = cas.diag(sim_options['ctrl_params'])
+        self.A_des = 0.01 * cas.diag(sim_options['ctrl_params'])
      
     def __build_controller(self, architecture):
 
@@ -68,6 +59,7 @@ class Ndi():
         self.F, self.G = self.__extract_aerodynamic(architecture)
         self.__trial.formulation.build(self.__trial.options['formulation'], self.__trial.model)
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
+        self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'NDI', self.__trial.options)
         return None
     
     def __extract_aerodynamic(self, architecture):
@@ -90,68 +82,131 @@ class Ndi():
 
         return f_rot_funcs, g_rot_funcs
 
-    def rotation_ndi_controller(self, x0_scaled, nu, parameters, architecture):
+    def rotation_ndi_controller(self, x0_scaled, i, parameters, architecture):
+        # update reference 
+        err = self.__w0['x'][i][6:9] - x0_scaled[6:9]
+        nu = self.A_des @ (err)
         u_ndi = []
         for kite in architecture.kite_nodes:
             F = self.F[kite](x0_scaled, parameters)
             G = self.G[kite](x0_scaled, parameters)
             u_ndi = cas.inv(G) @ (nu - F)
         return u_ndi
-    def step(self, x0, plot_flag = False, u_ref = None):
+    
+    def step(self, x0, i):
 
         """ Compute NDI feedback control for given initial condition.
         """
 
-        awelogger.logger.info("Compute NDI feedback...")
-
-
-        # interpolator = self.__trial.nlp.Collocation.build_interpolator(
-        # self.__trial.options['nlp'], self.__trial.optimization.V_opt)
-        # T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-        # t_grid = np.linspace(0, self.__N*self.__ts, self.__N)
-        # self.__t_grid = cas.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
-        
-
-        # update reference
-        ref = self.get_reference(*self.__compute_time_grids(self.__index))
-        nu = self.A_des @ (ref['x'][self.__index][6:9] - x0[6:9])
-        dx_delta = self.rotation_ndi_controller(x0, nu, self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
-        self.__index += 1
+        awelogger.logger.info("Compute NDI feedback controller...")
+        u0 = {}
+        u0 = self.__w0['u'][i]
+        dx_delta = self.rotation_ndi_controller(x0, i, self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
         # create a casadi function including ndi parameters -> then evaluate the function here numerically
-        return cas.vertcat(cas.DM.zeros(18,1), dx_delta, cas.DM.zeros(3,1))
+        x_updated = cas.vertcat(x0[0:18], dx_delta, x0[21:])
+        return u0, x_updated
 
-    def __compute_time_grids(self, index):
-        """ Compute NLP time grids based in periodic index
+    def __create_reference_interpolator(self):
+        """ Create time-varying reference generator for tracking on interpolation of
+            optimal periodic steady state.
         """
 
-        Tref = self.__ref_dict['time_grids']['ip'][-1]
-        t_grid = self.__t_grid_coll + index*self.__ts
-        t_grid = cas.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+        # OC time grid
 
-        t_grid_x = self.__t_grid_x_coll + index*self.__ts
-        t_grid_x = cas.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
+        self.__t_grid_coll = self.__trial.nlp.time_grids['coll'](self.__N*self.__ts)
+        self.__t_grid_coll = cas.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full()
+        self.__t_grid_x_coll = self.__trial.nlp.time_grids['x_coll'](self.__N*self.__ts)
+        self.__t_grid_x_coll = cas.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full()
+        self.__t_grid_u = self.__trial.nlp.time_grids['u'](self.__N*self.__ts)
+        self.__t_grid_u = cas.reshape(self.__t_grid_u.T, self.__t_grid_u.numel(),1).full()
 
-        t_grid_u = self.__t_grid_u + index*self.__ts
-        t_grid_u = cas.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
+        # interpolate steady state solution
+        self.__ref_dict = self.__pocp_trial.visualization.plot_dict
+        nlp_options = self.__pocp_trial.options['nlp']
+        V_opt = self.__pocp_trial.optimization.V_opt
+        if self.__ndi_options['ref_interpolator'] == 'poly':
+            self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
+        elif self.__ndi_options['ref_interpolator'] == 'spline':
+            self.__interpolator = self.__build_spline_interpolator(nlp_options, V_opt)
+ 
+    def __build_spline_interpolator(self, nlp_options, V_opt):
+        """ Build spline-based reference interpolating method.
+        """
 
-        return t_grid, t_grid_x, t_grid_u
+        variables_dict = self.__pocp_trial.model.variables_dict
+        plot_dict = self.__pocp_trial.visualization.plot_dict
+        cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
+        n_points = self.__t_grid_coll.shape[0]
+        n_points_x = self.__t_grid_x_coll.shape[0]
     
+        self.__spline_dict = {}
+
+        for var_type in self.__var_list:
+            self.__spline_dict[var_type] = {}
+            for name in list(variables_dict[var_type].keys()):
+                self.__spline_dict[var_type][name] = {}
+                for j in range(variables_dict[var_type][name].shape[0]):
+                    if var_type == 'x':
+                        values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
+                        self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points_x)
+                    elif var_type == 'z' or (var_type == 'u' and self.__ndi_options['u_param'] == 'poly'):
+                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        if all(v == 0 for v in values) or 'fict' in name:
+                            self.__spline_dict[var_type][name][j] = cas.Function(name+str(j), [cas.SX.sym('t', n_points)], [np.zeros((1,n_points))])
+                        else:
+                            self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points)
+                    elif var_type == 'u' and self.__ndi_options['u_param'] == 'zoh':   
+                        # values = V_opt['u',:,name,j]
+                        # float_values = [float(value.full()) for value in values]
+                        control = V_opt['u',:,name,j]
+                        values = viz_tools.sample_and_hold_controls(plot_dict['time_grids'], control)
+                        time_grid = plot_dict['time_grids']['ip']
+                        if all(v == 0 for v in values) or 'fict' in name:
+                            self.__spline_dict[var_type][name][j] = cas.Function(name+str(j), [cas.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
+                        else:
+                            # self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [time_grid_u_list], float_values, {}).map(n_points_u)
+                            self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [time_grid], values, {}).map(self.__N)
+        
+        def spline_interpolator(t_grid, name, j, var_type):
+            """ Interpolate reference on specific time grid for specific variable.
+            """
+
+            values_ip = self.__spline_dict[var_type][name][j](t_grid)
+
+            return values_ip
+
+        return spline_interpolator
+
+
+    def __compute_time_grids(self, index):
+            """ Compute NLP time grids based in periodic index
+            """
+            # d = self.pocp_trial.options['nlp']['collocation']['d']
+            Tref = self.__ref_dict['time_grids']['ip'][-1]
+            t_grid = self.__t_grid_coll
+            t_grid = cas.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+            t_grid_x = self.__t_grid_x_coll
+            t_grid_x = cas.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
+            t_grid_u = self.__t_grid_u
+            t_grid_u = cas.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
+            return t_grid, t_grid_x, t_grid_u
+
+
     def get_reference(self, t_grid, t_grid_x, t_grid_u):
         """ Interpolate reference on NLP time grids.
         """
-
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
         for var_type in self.__var_list:
             ip_dict[var_type] = []
-            for name in list(self.__trial.model.variables_dict[var_type].keys()):
-                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+            for name in list(self.__pocp_trial.model.variables_dict[var_type].keys()):
+                for dim in range(self.__pocp_trial.model.variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
-                        ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
-                    elif (var_type == 'u') and self.__ndi_options['u_param'] == 'zoh':
-                        ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim,var_type))
+                        ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim, var_type))
+                    elif (var_type == 'u') and self.__ndi_options['u_param']:
+                        ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim, var_type))
                     else:
-                        ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
+                        ip_dict[var_type].append(self.__interpolator(t_grid, name, dim, var_type))
             if self.__ndi_options['ref_interpolator'] == 'poly':
                 ip_dict[var_type] = cas.horzcat(*ip_dict[var_type]).T
             elif self.__ndi_options['ref_interpolator'] == 'spline':
@@ -162,7 +217,7 @@ class Ndi():
         counter_u = 0
         V_list = []
 
-        for name in self.__trial.model.variables_dict['theta'].keys():
+        for name in self.__pocp_trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
             else:
@@ -194,76 +249,7 @@ class Ndi():
 
         V_ref = V_ref(cas.vertcat(*V_list))
 
-        return V_ref
-    
-    def __create_reference_interpolator(self):
-        """ Create time-varying reference generator for tracking MPC based on interpolation of
-            optimal periodic steady state.
-        """
-
-        # MPC time grid
-        self.__t_grid_coll = self.__trial.nlp.time_grids['coll'](self.__N*self.__ts)
-        self.__t_grid_coll = cas.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full()
-        self.__t_grid_x_coll = self.__trial.nlp.time_grids['x_coll'](self.__N*self.__ts)
-        self.__t_grid_x_coll = cas.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full()
-        self.__t_grid_u = self.__trial.nlp.time_grids['u'](self.__N*self.__ts)
-        self.__t_grid_u = cas.reshape(self.__t_grid_u.T, self.__t_grid_u.numel(),1).full()
-
-        # interpolate steady state solution
-        self.__ref_dict = self.__pocp_trial.visualization.plot_dict
-        nlp_options = self.__pocp_trial.options['nlp']
-        V_opt = self.__pocp_trial.optimization.V_opt
-        if self.__ndi_options['ref_interpolator'] == 'poly':
-            self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
-        elif self.__ndi_options['ref_interpolator'] == 'spline':
-            self.__interpolator = self.__build_spline_interpolator(nlp_options, V_opt)
-
-        return None
-
-    def __build_spline_interpolator(self, nlp_options, V_opt):
-        """ Build spline-based reference interpolating method.
-        """
-
-        variables_dict = self.__pocp_trial.model.variables_dict
-        plot_dict = self.__pocp_trial.visualization.plot_dict
-        cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
-        n_points = self.__t_grid_coll.shape[0]
-        n_points_x = self.__t_grid_x_coll.shape[0]
-        self.__spline_dict = {}
-
-        for var_type in self.__var_list:
-            self.__spline_dict[var_type] = {}
-            for name in list(variables_dict[var_type].keys()):
-                self.__spline_dict[var_type][name] = {}
-                for j in range(variables_dict[var_type][name].shape[0]):
-                    if var_type == 'x':
-                        values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
-                        self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
-                    elif var_type == 'z' or (var_type == 'u' and self.__ndi_options['u_param'] == 'poly'):
-                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
-                        if all(v == 0 for v in values) or 'fict' in name:
-                            self.__spline_dict[var_type][name][j] = cas.Function(name+str(j), [cas.SX.sym('t',n_points)], [np.zeros((1,n_points))])
-                        else:
-                            self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
-                    elif var_type == 'u' and self.__ndi_options['u_param'] == 'zoh':
-                        control = V_opt['u',:,name,j]
-                        values = viz_tools.sample_and_hold_controls(plot_dict['time_grids'], control)
-                        time_grid = plot_dict['time_grids']['ip']
-                        if all(v == 0 for v in values) or 'fict' in name:
-                            self.__spline_dict[var_type][name][j] = cas.Function(name+str(j), [cas.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
-                        else:
-                            self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(self.__N)
-
-        def spline_interpolator(t_grid, name, j, var_type):
-            """ Interpolate reference on specific time grid for specific variable.
-            """
-
-            values_ip = self.__spline_dict[var_type][name][j](t_grid)
-
-            return values_ip
-
-        return spline_interpolator
-
+        return V_ref  
     
     """
     def build(self, options, architecture):
@@ -380,3 +366,13 @@ class Ndi():
     @interpolator.setter
     def interpolator(self, value):
         awelogger.logger.info('Cannot set interpolator object.')
+
+    @property
+    def w0(self):
+        """ Collocation grid time vector
+        """
+        return self.__w0
+
+    @w0.setter
+    def w0(self, value):
+        awelogger.logger.info('Cannot set w0 object.')

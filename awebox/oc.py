@@ -16,7 +16,6 @@ class OC():
         self.__N = sim_options['N']
         self.__oc_options = sim_options
         self.__ts = ts
-        self.__ref_interpolator = sim_options['ref_interpolator']
         # store model data
         self.__var_list = ['x', 'z', 'u']
         self.__nx = trial.model.variables['x'].shape[0]
@@ -26,6 +25,7 @@ class OC():
          # create mpc trial
         options = copy.deepcopy(trial.options_seed)
         options['nlp.n_k'] = self.__N
+        options['visualization.cosmetics.plot_ref'] = True
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
             if name != 't_f':
@@ -35,7 +35,7 @@ class OC():
         self.__trial = awe.Trial(seed = options)
         self.__build_trial()
         self.__create_reference_interpolator()
-        self. w0 = self.get_reference(*self.__compute_time_grids(0))
+        self.__w0 = self.get_reference(*self.__compute_time_grids(0))
 
     def __build_trial(self):
         """ Build options, model, formulation and nlp of mpc trial.
@@ -85,10 +85,7 @@ class OC():
         cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
         n_points = self.__t_grid_coll.shape[0]
         n_points_x = self.__t_grid_x_coll.shape[0]
-        # n_points_u = self.__t_grid_u.shape[0]
-        # time_grid_u = self.__t_grid_u
-        # time_grid_u_list = time_grid_u.tolist() if isinstance(time_grid_u, np.ndarray) else time_grid_u
-        # time_grid_u_list = [float(value[0]) for value in time_grid_u_list]
+    
         self.__spline_dict = {}
 
         for var_type in self.__var_list:
@@ -98,13 +95,13 @@ class OC():
                 for j in range(variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
                         values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
-                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(self.__t_grid_x_coll.shape[0])
+                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points_x)
                     elif var_type == 'z' or (var_type == 'u' and self.__oc_options['u_param'] == 'poly'):
                         values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t', n_points)], [np.zeros((1,n_points))])
                         else:
-                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(self.__t_grid_coll.shape[0])
+                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points)
                     elif var_type == 'u' and self.__oc_options['u_param'] == 'zoh':   
                         # values = V_opt['u',:,name,j]
                         # float_values = [float(value.full()) for value in values]
@@ -202,7 +199,7 @@ class OC():
         return V_ref
 
     def step(self, i):
-        return self.w0['u'][i]    
+        return self.__w0['u'][i]    
     @property
     def pocp_trial(self):
         """ awebox.Trial attribute containing model and OCP info.
