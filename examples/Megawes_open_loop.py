@@ -43,7 +43,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 100 # approximately 40 per loop
+options['nlp.n_k'] = 120 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -76,9 +76,9 @@ plt.show()
 tracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 200  # closed-loop simulation steps
+N_sim = 240  # closed-loop simulation steps
 
-ctrl_type = 'ndi' # choose between 'ndi', 'mpc & 'open_loop' 
+ctrl_type = 'open_loop' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
     t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
     tracking_options['oc.ref_interpolator'] = 'spline'
@@ -86,7 +86,7 @@ if ctrl_type == 'open_loop':
     tracking_options['oc.N'] = N_sim
     tracking_options['oc.plot_flag'] = True
 elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
-    t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 1.00*trial.visualization.plot_dict['theta']['t_f']
     if ctrl_type == 'mpc':
         # set MPC options
         N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
@@ -109,7 +109,8 @@ elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
         tracking_options['ndi.plot_flag'] = False
         tracking_options['ndi.ref_interpolator'] = 'spline'
         tracking_options['ndi.u_param'] = 'zoh'
-        tracking_options['ndi.ctrl_params'] = 1 * np.array([-10, -50, -25, .15])
+        tracking_options['ndi.ctrl_params_omega'] = (np.pi/180) * np.array([15, 35, 12])
+        tracking_options['ndi.ctrl_params_actuator'] = np.array([1.5, 1, 1.1]) 
 
 
 
@@ -117,7 +118,7 @@ ts = t_end/N_sim # sampling time (length of simulation)
 
 
 # simulation options
-N_dt = 10 # integrator steps within one sampling time
+N_dt = 20 # integrator steps within one sampling time
 tracking_options['sim.number_of_finite_elements'] = N_dt
 tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
 

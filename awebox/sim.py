@@ -57,7 +57,7 @@ class Simulation:
         options.fill_in_seed(options_seed)
         if ctrl_type == 'mpc':
             self.__mpc_options = options['mpc']
-            self.__N = self.__mpc['N']
+            self.__N = self.__mpc_options['N']
         elif ctrl_type =='ndi':
             self.__ctrl_options = options['ndi']
             self.__N = self.__ctrl_options['N']
@@ -236,7 +236,7 @@ class Simulation:
         """ plot visualization
         """
 
-        self.__trial.options['visualization']['cosmetics']['plot_ref'] = False
+        self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
         self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None

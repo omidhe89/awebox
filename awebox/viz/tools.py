@@ -389,6 +389,86 @@ def merge_x_values(V ,name, dim, plot_dict, cosmetics, ref = False):
 
     return x_values, tgrid
 
+def merge_xdot_values(V ,name, dim, plot_dict, cosmetics, ref = False):
+    if name == 'dq10':
+            dim = dim
+    elif name == 'ddq10':
+            dim = dim + 3
+    elif name == 'domega10':
+            dim = dim + 6
+    elif name == 'dr10':
+            dim = dim + 9
+    elif name == 'ddelta10':
+            dim = dim + 18
+    elif name == 'dl_t':
+            dim = dim + 21
+    elif name == 'ddl_t':
+            dim = dim + 22
+    elif name == 'dddl_t':
+            dim = dim + 23
+    # read in inputs
+
+    discretization = plot_dict['discretization']
+    if discretization == 'direct_collocation':
+        scheme = plot_dict['options']['nlp']['collocation']['scheme']
+
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll'] 
+
+    # interval time points
+    if not ref:
+        tgrid_x = plot_dict['time_grids']['x']
+    else:
+        tgrid_x = plot_dict['time_grids']['ref']['x']
+
+    if discretization == 'multiple_shooting':
+        # take interval values
+        # x_values = np.array(cas.vertcat(*V['x',:,name,dim]).full())
+        # tgrid = tgrid_x
+        raise Exception(discretization + 'is not implemented')
+
+    elif discretization == 'direct_collocation':
+        if scheme != 'radau':
+            # x_values = []
+            # # merge interval and node values
+            # for k in range(plot_dict['n_k']+1):
+            #     # add interval values
+            #     x_values = cas.vertcat(x_values, V['x',k, name,dim])
+            #     if (cosmetics['plot_coll'] and k < plot_dict['n_k']):
+            #         # add node values
+            #         x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var',k, :, 'x', name,dim]).full())
+            # x_values = np.array(x_values)
+            # if cosmetics['plot_coll']:
+            #     tgrid = tgrid_x_coll
+            # else:
+            #     tgrid = tgrid_x
+            raise Exception( + 'with'+ scheme + 'is not implemented')
+        elif scheme == 'radau':
+            if cosmetics['plot_coll']:
+                # add node values
+                # x_values = np.array(struct_op.coll_slice_to_vec(V['coll_x',:, :, 'x', name,dim]))
+                tgrid = tgrid_coll
+                x_values = []
+                for i in range(len(V['coll_x'])):                      
+                    for j in range(len(V['coll_x'][i])):
+                        x_values = cas.vertcat(x_values, V['coll_x'][i][j][dim].full())
+                        
+            else:
+                x_values = []
+                tgrid = []
+
+    # make list of time grid
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    x_values = list(chain.from_iterable(np.array(x_values)))
+
+    return x_values, tgrid
+
 def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs

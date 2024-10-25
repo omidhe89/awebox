@@ -17,7 +17,7 @@ class Ndi():
         self.__N = sim_options['N']
         self.__ndi_options = sim_options
         # store model data
-        self.__var_list = ['x', 'z', 'u']
+        self.__var_list = ['x', 'u', 'xdot', 'z']
         self.__nx = trial.model.variables['x'].shape[0]
         self.__nu = trial.model.variables['u'].shape[0]
         self.__nz = trial.model.variables['z'].shape[0]
@@ -46,8 +46,8 @@ class Ndi():
         self.__w0 = self.get_reference(*self.__compute_time_grids(0))
 
         self.u_ndi = []
-        self.A_des = cas.diag(sim_options['ctrl_params'][0:3])
-     
+        self.A_omega = cas.diag(sim_options['ctrl_params_omega'])
+        self.A_actuator = cas.diag(sim_options['ctrl_params_actuator'])
     def __build_controller(self, architecture):
 
         """ Build options, model, and necessary controller elements """
@@ -85,14 +85,14 @@ class Ndi():
 
     def rotation_ndi_controller(self, x0_scaled, i, parameters, architecture):
         # update reference 
-        err =  x0_scaled[6:9] - self.__w0['x'][i][6:9] 
-        nu = self.A_des @ err
+        err =  self.__w0['x'][i][6:9]  - x0_scaled[6:9]
+        nu =  self.__w0['xdot'][i][6:9] + self.A_omega @ err
         u_ndi = []
         for kite in architecture.kite_nodes:
             F = self.F[kite](x0_scaled, parameters)
             G = self.G[kite](x0_scaled, parameters)
             delta_ndi = cas.inv(G) @ (nu - F)
-            u_ndi = cas.diag(self.__ndi_options['ctrl_params'][-1]) @ (delta_ndi - x0_scaled[18:21])
+            u_ndi = self.A_actuator @ (delta_ndi - x0_scaled[18:21])
         return u_ndi
     
     def step(self, x0, i):
@@ -105,7 +105,7 @@ class Ndi():
         u0 = self.__w0['u'][i]
         dx_delta = self.rotation_ndi_controller(x0, i, self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
         # create a casadi function including ndi parameters -> then evaluate the function here numerically
-        u_updated = cas.vertcat(u0[0:6], u0[6:9] + dx_delta, u0[9:])
+        u_updated = cas.vertcat(u0[0:6], dx_delta, u0[9:]) #u0[6:9] + 
 
         return u_updated, x0
 
@@ -141,7 +141,7 @@ class Ndi():
         cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
         n_points = self.__t_grid_coll.shape[0]
         n_points_x = self.__t_grid_x_coll.shape[0]
-    
+
         self.__spline_dict = {}
 
         for var_type in self.__var_list:
@@ -151,6 +151,9 @@ class Ndi():
                 for j in range(variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
                         values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
+                        self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points_x)
+                    elif var_type == 'xdot':
+                        values, time_grid = viz_tools.merge_xdot_values(self.pocp_trial.solution_dict['Xdot_opt'], name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = cas.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]] + values, {}).map(n_points_x)
                     elif var_type == 'z' or (var_type == 'u' and self.__ndi_options['u_param'] == 'poly'):
                         values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
@@ -201,6 +204,8 @@ class Ndi():
                 for dim in range(self.__pocp_trial.model.variables_dict[var_type][name].shape[0]):
                     if var_type == 'x':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim, var_type))
+                    elif var_type == 'xdot':
+                        ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim, var_type))
                     elif (var_type == 'u') and (self.__ndi_options['u_param'] == 'zoh'):
                         if self.__ndi_options['ref_interpolator'] == 'poly':
                             # it is wrong and need to be completed!
@@ -219,6 +224,7 @@ class Ndi():
         counter = 0
         counter_x = 0
         counter_u = 0
+        counter_xdot = 0
         V_list = []
 
         for name in self.__pocp_trial.model.variables_dict['theta'].keys():
@@ -234,10 +240,10 @@ class Ndi():
                 if j == 0:
                     V_list.append(ip_dict['x'][:,counter_x])
                     counter_x += 1
-
                     if self.__ndi_options['u_param'] == 'zoh':
                         V_list.append(ip_dict['u'][:, counter_u])
-                        V_list.append(np.zeros((self.__nx, 1)))
+                        V_list.append(ip_dict['xdot'][:,counter_xdot])
+                        counter_xdot += 1
                         V_list.append(np.zeros((self.__nz, 1)))
                         counter_u += 1
                 else:
@@ -245,12 +251,13 @@ class Ndi():
                         if var_type == 'x':
                             V_list.append(ip_dict[var_type][:,counter_x])
                             counter_x += 1
+                            counter_xdot += 1
                         elif var_type == 'z' or (var_type == 'u' and self.__ndi_options['u_param']=='poly'):
                             V_list.append(ip_dict[var_type][:,counter])
                     counter += 1
 
         V_list.append(ip_dict['x'][:,counter_x])
-
+        
         V_ref = V_ref(cas.vertcat(*V_list))
 
         return V_ref  
@@ -319,6 +326,16 @@ class Ndi():
 
     @trial.setter
     def trial(self, value):
+        awelogger.logger.info('Cannot set trial object.')
+
+    @property
+    def pocp_trial(self):
+        """ awebox.Trial attribute containing model and OCP info.
+        """
+        return self.__pocp_trial
+
+    @pocp_trial.setter
+    def pocp_trial(self, value):
         awelogger.logger.info('Cannot set trial object.')
 
     @property
