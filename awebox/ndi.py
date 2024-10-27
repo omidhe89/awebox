@@ -105,7 +105,7 @@ class Ndi():
         u0 = self.__w0['u'][i]
         dx_delta = self.rotation_ndi_controller(x0, i, self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
         # create a casadi function including ndi parameters -> then evaluate the function here numerically
-        u_updated = cas.vertcat(u0[0:6], dx_delta, u0[9:]) #u0[6:9] + 
+        u_updated = cas.vertcat(u0[0:6], u0[6:9] + dx_delta, u0[9:]) #
 
         return u_updated, x0
 

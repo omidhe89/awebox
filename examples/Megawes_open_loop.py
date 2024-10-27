@@ -76,9 +76,9 @@ plt.show()
 tracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 240  # closed-loop simulation steps
+N_sim = 120  # closed-loop simulation steps
 
-ctrl_type = 'open_loop' # choose between 'ndi', 'mpc & 'open_loop' 
+ctrl_type = 'ndi' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
     t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
     tracking_options['oc.ref_interpolator'] = 'spline'
@@ -109,8 +109,8 @@ elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
         tracking_options['ndi.plot_flag'] = False
         tracking_options['ndi.ref_interpolator'] = 'spline'
         tracking_options['ndi.u_param'] = 'zoh'
-        tracking_options['ndi.ctrl_params_omega'] = (np.pi/180) * np.array([15, 35, 12])
-        tracking_options['ndi.ctrl_params_actuator'] = np.array([1.5, 1, 1.1]) 
+        tracking_options['ndi.ctrl_params_omega'] = (np.pi/180) * np.array([20, 40, 10])
+        tracking_options['ndi.ctrl_params_actuator'] = np.array([0.5, 0.5, 0.3]) 
 
 
 
