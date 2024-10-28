@@ -52,9 +52,11 @@ class Pmpc(object):
         self.__d = mpc_options['d']
         self.__scheme = mpc_options['scheme']
         self.__cost_type = mpc_options['cost_type']
+        self.__ndi_included = mpc_options['ndi_included']
         self.__pocp_trial = trial
         self.__ts = ts
         self.__mpc_options = mpc_options
+        
 
         # store model data
         self.__var_list = ['x', 'z', 'u']
@@ -91,7 +93,8 @@ class Pmpc(object):
 
         # periodic indexing
         self.__index = 0
-
+        # initialize the NDI parameters
+        self.__A_omega = np.diag(np.ones(3))
         # initialize
         self.__initialize_solver()
 
@@ -113,7 +116,8 @@ class Pmpc(object):
         self.__trial.formulation.build(self.__trial.options['formulation'], self.__trial.model)
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
-
+        self.__extract_aerodynamic(architecture)
+        
         # remove state constraints at k = 0
         self.__trial.nlp.V_bounds['lb']['x',0] = - np.inf
         self.__trial.nlp.V_bounds['ub']['x',0] = np.inf
@@ -220,8 +224,10 @@ class Pmpc(object):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
-
-        awelogger.logger.info("Compute MPC feedback...")
+        if self.__ndi_included:
+            awelogger.logger.info("Compute MPC + NDI feedback...")    
+        else:
+            awelogger.logger.info("Compute MPC feedback...")
 
         # update nlp parameters
         self.__p0 = self.__p(0.0)
@@ -271,8 +277,8 @@ class Pmpc(object):
         if not self.__mpc_options['homotopy_warmstart']:
             self.__w0 = self.__trial.nlp.V(sol['x'])
 
-        self.__index += 1
-
+        
+        
         if plot_flag == True:
             self.__p_fix_num = self.__P_fun(self.__p0)
             flags = ['states','controls','constraints']
@@ -280,23 +286,30 @@ class Pmpc(object):
 
         self.__extract_solver_stats(sol)
 
-        # return zoh control
-        if self.__mpc_options['u_param'] == 'poly':
-            u0 = ct.mtimes(
-                    self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
-                    ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T
-                    )
-        elif self.__mpc_options['u_param'] == 'zoh':
-            u0 = self.__trial.nlp.V(sol['x'])['u',0]
+        
 
         # initial guess for higher level simulation
         xa0 = self.__trial.nlp.V(sol['x'])['coll_var',0,0,'z']
         xdot0 = self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0]
         self.__z0 = ct.vertcat(xdot0, xa0)
 
+        self.__A_omega = ct.diag(np.abs(np.mean(np.hstack(self.__trial.nlp.V(sol['x'])['x',:,'omega10']), axis=1)))
+        # self.__A_omega = ct.diag(np.abs(self.__p0['ref','x',0][6:9]))
+        # return zoh control
+        if self.__mpc_options['u_param'] == 'poly':
+            u0 = ct.mtimes(self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
+                    ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T)
+        elif self.__mpc_options['u_param'] == 'zoh':
+            if self.__ndi_included:
+                # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
+                u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
+                u0 = self.__trial.nlp.V(sol['x'])['u',0] + ct.vertcat(ct.GenDM_zeros(6,1), u0_ndi, ct.GenDM_zeros(1,1))
+            else:
+                u0 = self.__trial.nlp.V(sol['x'])['u',0]
+
         # shift solution (note: after control assignment!)
         self.__shift_solution()
-
+        self.__index += 1
         return u0
 
     def __generate_objective(self):
@@ -317,7 +330,7 @@ class Pmpc(object):
                 if weight in ['Q', 'P']:
                     weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
-                    weights[weight] = np.ones((self.__nu,1))
+                    weights[weight] = 0.1 * np.ones((self.__nu,1))
         weights['Z'] = np.ones((self.__nz,1))
         self.__weights = weights
 
@@ -692,6 +705,38 @@ class Pmpc(object):
 
         return ct.Function('tracking_cost', [w, w_ref, W], [f_t])
 
+    def __extract_aerodynamic(self, architecture):
+        kite_nodes = architecture.kite_nodes
+        
+        model_dynamics = self.__trial.model.rot_dyn_dict
+        f_rot_fun = []
+        g_rot_fun = []
+        for kite in kite_nodes:
+            f_rot_fun = [f_rot_fun, model_dynamics['F' + str(kite)]]
+            g_rot_fun = [g_rot_fun, model_dynamics['G' + str(kite)]]
+        
+        '''
+        # dynamics in MX format!
+        model_dynamics = self._Ndi__trial.model.outputs['model_for_control']
+        f_rot, g_rot_c1, g_rot_c2, g_rot_c3 = cas.vertsplit(model_dynamics,3)
+        g_rot = cas.horzcat(g_rot_c1, g_rot_c2, g_rot_c3)
+        '''
+        self.__f_rot_fun = f_rot_fun
+        self.__g_rot_fun = g_rot_fun
+        return None
+    
+    def __rotation_ndi_controller(self, x0, xdot0, parameters, architecture):
+        # update reference 
+        # err =  self.__p0['ref','x'][0][6:9]  - x0[6:9]
+        err =  self.__w0['x'][0][6:9]  - x0[6:9]
+        nu =  xdot0[6:9] + self.__A_omega @ err
+        u_ndi = []
+        for kite in architecture.kite_nodes:
+            F = self.__f_rot_fun[kite](x0, parameters)
+            G = self.__g_rot_fun[kite](x0, parameters)
+            delta_ndi = ct.inv(G) @ (nu - F)
+            u_ndi = 0.125* np.eye(3) @ (delta_ndi - x0[18:21]) #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
+        return u_ndi
     @property
     def trial(self):
         """ awebox.Trial attribute containing model and OCP info.
@@ -791,3 +836,23 @@ class Pmpc(object):
     @z0.setter
     def z0(self, value):
         awelogger.logger.info('Cannot set z0 object.')
+
+    @property
+    def p0(self):
+        """ algebraic dae variables initial guess
+        """
+        return self.__p0
+
+    @p0.setter
+    def p0(self, value):
+        awelogger.logger.info('Cannot set p0 object.')
+
+    @property
+    def p_fix_num(self):
+        """ algebraic dae variables initial guess
+        """
+        return self.__p_fix_num
+
+    @p0.setter
+    def p_fix_num(self, value):
+        awelogger.logger.info('Cannot set p_fix_num object.')

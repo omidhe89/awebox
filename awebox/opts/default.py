@@ -462,6 +462,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart', True,         ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
+        ('mpc', None,  None,    'ndi_included', False,               ('added ndi control input to MPC', None), 'x'),
         ### ndi options
         ('ndi', None,  None,    'N',            10,                 ('controller simulation time', None), 'x'),
         ('ndi', None,  None,    'ctrl_params_omega',  np.array([0.1, 0.4, 0.25]), (' rotation controller parameters', None), 'x'),

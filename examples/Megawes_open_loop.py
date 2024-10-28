@@ -33,8 +33,8 @@ options = set_megawes_path_generation_settings(aero_model, options)
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # positive (or null) reel-out speed during power generation
-options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
+options['user_options.trajectory.lift_mode.windings'] = 2 # number of loops
+options['model.system_bounds.theta.t_f'] = [1., 60.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'uniform'
@@ -43,7 +43,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 120 # approximately 40 per loop
+options['nlp.n_k'] = 80 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -73,12 +73,12 @@ plt.show()
 #%% 
 # ----------------- create controller with tracking-specific options ----------------- #
 # adjust options for path tracking (incl. aero model)
-tracking_options = {}
+xtracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 120  # closed-loop simulation steps
+N_sim = 160  # closed-loop simulation steps
 
-ctrl_type = 'ndi' # choose between 'ndi', 'mpc & 'open_loop' 
+ctrl_type = 'mpc' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
     t_end = 1.0*trial.visualization.plot_dict['theta']['t_f']
     tracking_options['oc.ref_interpolator'] = 'spline'
@@ -86,10 +86,10 @@ if ctrl_type == 'open_loop':
     tracking_options['oc.N'] = N_sim
     tracking_options['oc.plot_flag'] = True
 elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
-    t_end = 1.00*trial.visualization.plot_dict['theta']['t_f']
+    t_end = 2.00*trial.visualization.plot_dict['theta']['t_f']
     if ctrl_type == 'mpc':
         # set MPC options
-        N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
+        N_mpc = 5 # MPC horizon (number of MPC windows in prediction horizon)
         tracking_options['mpc.scheme'] = 'radau'
         tracking_options['mpc.d'] = 4
         tracking_options['mpc.jit'] = False
@@ -104,13 +104,14 @@ elif ctrl_type == 'mpc' or ctrl_type == 'ndi':
         tracking_options['mpc.u_param'] = 'zoh'
         tracking_options['mpc.homotopy_warmstart'] = True
         tracking_options['mpc.terminal_point_constr'] = False
+        tracking_options['mpc.ndi_included'] = True
     else:
         tracking_options['ndi.N'] = N_sim
         tracking_options['ndi.plot_flag'] = False
         tracking_options['ndi.ref_interpolator'] = 'spline'
         tracking_options['ndi.u_param'] = 'zoh'
         tracking_options['ndi.ctrl_params_omega'] = (np.pi/180) * np.array([20, 40, 10])
-        tracking_options['ndi.ctrl_params_actuator'] = np.array([0.5, 0.5, 0.3]) 
+        tracking_options['ndi.ctrl_params_actuator'] = np.array([0.125, 0.125, 0.125]) 
 
 
 
@@ -135,9 +136,15 @@ sim = awe.sim.Simulation(trial, ctrl_type ,ts, tracking_options)
 sim.run(N_sim)
 
         
+plot_dict = sim.trial.visualization.plot_dict
+outputs = plot_dict['outputs']
+time = plot_dict['time_grids']['ip']
+avg_power = plot_dict['power_and_performance']['avg_power']/1e3
+print('======================================')
+print('Average power: {} kW'.format(avg_power))
+print('======================================')
 
-
-sim.plot(['quad', 'states', 'controls'])
+sim.plot(['quad', 'states', 'controls',])
 
 
 
