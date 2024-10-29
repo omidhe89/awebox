@@ -44,7 +44,7 @@ plt.show()
 # set-up closed-loop simulation
 #%%
 N_mpc = 10 # MPC horizon
-N_sim = 200  # closed-loop simulation steps
+N_sim = 300  # closed-loop simulation steps
 ts = 0.1 # sampling time
 
 # MPC options
@@ -71,7 +71,7 @@ options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initializatio
 options['sim.sys_params']['wind']['u_ref'] = 1.0*options['sim.sys_params']['wind']['u_ref']
 
 # make simulator
-closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, options)
+closed_loop_sim = awe.sim.Simulation(trial, 'mpc', ts, options)
 closed_loop_sim.run(N_sim)
 closed_loop_sim.plot(['isometric','states'])
 plt.show()

@@ -43,7 +43,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 80 # approximately 40 per loop
+options['nlp.n_k'] = 90 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # default is 'shooting_nodes'
@@ -66,7 +66,7 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 
-trial.plot(['isometric', 'states', 'controls'])
+trial.plot(['quad', 'states', 'controls'])
 plt.show()
 
 
@@ -76,7 +76,7 @@ plt.show()
 xtracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 160  # closed-loop simulation steps
+N_sim = 240  # closed-loop simulation steps
 
 ctrl_type = 'mpc' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
