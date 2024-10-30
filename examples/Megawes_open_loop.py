@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import copy
 import numpy as np  
 from scipy.interpolate import CubicSpline, interp1d, PPoly, PchipInterpolator
-plt.ion()
+%matplotlib inline
 #%%
 # ----------------- user-specific options ----------------- #
 # indicate aerodynamic model of aircraft
@@ -76,7 +76,7 @@ plt.show()
 xtracking_options = {}
 tracking_options = copy.deepcopy(options)
 tracking_options = set_megawes_path_tracking_settings('ALM', tracking_options)
-N_sim = 240  # closed-loop simulation steps
+N_sim = 180  # closed-loop simulation steps
 
 ctrl_type = 'mpc' # choose between 'ndi', 'mpc & 'open_loop' 
 if ctrl_type == 'open_loop':
@@ -145,7 +145,7 @@ print('Average power: {} kW'.format(avg_power))
 print('======================================')
 
 sim.plot(['quad', 'states', 'controls',])
-
+plt.show()
 
 
 
