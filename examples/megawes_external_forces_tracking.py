@@ -47,7 +47,7 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation - Not available in MPC)
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
@@ -56,7 +56,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 40 # approximately 40 per loop
+options['nlp.n_k'] = 60 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
@@ -86,7 +86,7 @@ tracking_options = set_megawes_path_tracking_settings('ALM', traj_options)
 
 # set MPC options
 ts = 0.1 # sampling time (length of one MPC window)
-N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
+N_mpc = 5 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
 tracking_options['mpc.max_iter'] = 1000
 tracking_options['mpc.max_cpu_time'] = 10.
@@ -94,7 +94,7 @@ tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
 # simulation options
-N_dt = 20 # integrator steps within one sampling time
+N_dt = 5 # integrator steps within one sampling time
 N_sim = int(round(t_end/ts)) # number of MPC evaluations
 tracking_options['sim.number_of_finite_elements'] = N_dt
 tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
@@ -111,7 +111,7 @@ mpc_opts['mpc']['max_iter'] = 1000
 mpc_opts['mpc']['max_cpu_time'] = 10.
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-
+mpc_opts['mpc']['ndi_included'] = True
 # MPC weights
 nx = 23
 nu = 10
@@ -174,7 +174,7 @@ p0['param'] = params
 
 # create integrator (integrators: rk4 (4th order Runge-Kutta) or ee1 (1st order explicit Euler))
 dt = float(ts/N_dt) # time step length
-integrator = awe_integrators.ee1root('F', dae.dae, dae.rootfinder, {'tf': dt, 'number_of_finite_elements': 1})
+integrator = awe_integrators.rk4root('F', dae.dae, dae.rootfinder, {'tf': dt, 'number_of_finite_elements': 1})
 
 # ----------------- create CasADI function of integrator ----------------- #
 
@@ -454,9 +454,19 @@ for k in range(N_steps):
         V_shifted = out['V_shifted']
         w0 = V_shifted.full().squeeze().tolist()
 
-        # retrieve new controls
-        u0_call = out['u0']
+        
+        
 
+        # embed NDI
+        a_ndi = mpc.trial.nlp.V(V_shifted) 
+        mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(a_ndi['x',:,'omega10']), axis=1)))
+        # retrieve new controls
+        if mpc_opts['mpc']['ndi_included']:
+                # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
+                u0_ndi = mpc.rotation_ndi_controller(a_ndi['x',0], mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',0], params['theta0'], architecture)
+                u0_call = out['u0'] + ca.vertcat(ca.GenDM_zeros(6,1), u0_ndi, ca.GenDM_zeros(1,1))
+        else:
+             u0_call = out['u0']
         # fill in controls
         u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
         u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!

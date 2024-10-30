@@ -37,7 +37,7 @@ options['user_options.trajectory.lift_mode.windings'] = 2 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 60.] # cycle period [s]
 
 # indicate desired wind environment
-options['user_options.wind.model'] = 'uniform'
+options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 12.
 options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002

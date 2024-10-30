@@ -94,7 +94,7 @@ class Pmpc(object):
         # periodic indexing
         self.__index = 0
         # initialize the NDI parameters
-        self.__A_omega = np.diag(np.ones(3))
+        self.A_omega = np.diag(np.ones(3))
         # initialize
         self.__initialize_solver()
 
@@ -293,7 +293,7 @@ class Pmpc(object):
         xdot0 = self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0]
         self.__z0 = ct.vertcat(xdot0, xa0)
 
-        self.__A_omega = ct.diag(np.abs(np.mean(np.hstack(self.__trial.nlp.V(sol['x'])['x',:,'omega10']), axis=1)))
+        self.A_omega = ct.diag(np.abs(np.mean(np.hstack(self.__trial.nlp.V(sol['x'])['x',:,'omega10']), axis=1)))
         # self.__A_omega = ct.diag(np.abs(self.__p0['ref','x',0][6:9]))
         # return zoh control
         if self.__mpc_options['u_param'] == 'poly':
@@ -302,7 +302,7 @@ class Pmpc(object):
         elif self.__mpc_options['u_param'] == 'zoh':
             if self.__ndi_included:
                 # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
-                u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
+                u0_ndi = self.rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
                 u0 = self.__trial.nlp.V(sol['x'])['u',0] + ct.vertcat(ct.GenDM_zeros(6,1), u0_ndi, ct.GenDM_zeros(1,1))
             else:
                 u0 = self.__trial.nlp.V(sol['x'])['u',0]
@@ -725,11 +725,11 @@ class Pmpc(object):
         self.__g_rot_fun = g_rot_fun
         return None
     
-    def __rotation_ndi_controller(self, x0, xdot0, parameters, architecture):
+    def rotation_ndi_controller(self, x0, xdot0, parameters, architecture):
         # update reference 
         # err =  self.__p0['ref','x'][0][6:9]  - x0[6:9]
         err =  self.__w0['x'][0][6:9]  - x0[6:9]
-        nu =  xdot0[6:9] + self.__A_omega @ err
+        nu =  xdot0[6:9] + self.A_omega @ err
         u_ndi = []
         for kite in architecture.kite_nodes:
             F = self.__f_rot_fun[kite](x0, parameters)
