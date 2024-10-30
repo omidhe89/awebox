@@ -11,13 +11,13 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 
 :author: Thomas Haas, Ghent University, 2024 (adapted from Jochem De Schutter)
 """
-
+#%%
 import awebox as awe
 from megawes_settings import set_megawes_path_generation_settings
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+%matplotlib inline
 # ----------------- user-specific options ----------------- #
 
 # indicate aerodynamic model of aircraft
@@ -91,7 +91,7 @@ l[0].set_color('b')
 ax.get_legend().remove()
 ax.legend([l[0]], ['reference ('+aero_model+', P='+'{:.2f}'.format(avg_power.full()[0][0]/1e3)+'MW)'], fontsize=12)
 fig.suptitle("")
-fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_3dpath.png')
+# fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_3dpath.png')
 
 # plot power profile
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
@@ -102,6 +102,6 @@ ax.tick_params(axis='both', labelsize=12)
 ax.set_xlabel('t [s]', fontsize=12)
 ax.set_ylabel('P [MW]', fontsize=12)
 ax.grid()
-fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_power.png')
+# fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_power.png')
 plt.show()
 
