@@ -735,8 +735,13 @@ class Pmpc(object):
             F = self.__f_rot_fun[kite](x0, parameters)
             G = self.__g_rot_fun[kite](x0, parameters)
             delta_ndi = ct.inv(G) @ (nu - F)
-            u_ndi = ct.diag([0.7854, 0.6981, 1.0472])* np.eye(3) @ (delta_ndi - x0[18:21]) #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
+            u_ndi = ct.diag([1.396, 1.2216, 1.0472]) @ (delta_ndi - x0[18:21]) #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
         return u_ndi
+    
+    # def l1_adaptive_controller(self, x0, ts,  parameters, architecture):
+        
+    #     return u_L1
+
     @property
     def trial(self):
         """ awebox.Trial attribute containing model and OCP info.

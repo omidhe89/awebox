@@ -26,7 +26,7 @@ import os
 import pickle
 import copy
 import matplotlib.pyplot as plt
-from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
+from examples.megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
 plt.ion()
 # ----------------- compile dependencies ----------------- #
@@ -56,7 +56,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 60 # approximately 40 per loop
+options['nlp.n_k'] = 100 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
@@ -86,7 +86,7 @@ tracking_options = set_megawes_path_tracking_settings('ALM', traj_options)
 
 # set MPC options
 ts = 0.1 # sampling time (length of one MPC window)
-N_mpc = 5 # MPC horizon (number of MPC windows in prediction horizon)
+N_mpc = 15 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
 tracking_options['mpc.max_iter'] = 1000
 tracking_options['mpc.max_cpu_time'] = 10.
@@ -115,9 +115,10 @@ mpc_opts['mpc']['ndi_included'] = True
 # MPC weights
 nx = 23
 nu = 10
-Q = np.ones((nx, 1))
-R = np.ones((nu, 1))
-P = np.ones((nx, 1))
+Q = 0.5 * np.ones((nx, 1))
+# Q[6:9]  = 0.5 * np.ones((3, 1))
+R = 0.01 * np.ones((nu, 1))
+P = 0.8 * np.ones((nx, 1))
 
 # create PMPC object (requires feed-in of tracking options to trial)
 mpc = pmpc.Pmpc(mpc_opts['mpc'], ts, trial)
@@ -396,6 +397,14 @@ x0['delta10'] = np.array(plot_dict['x']['delta10'])[:, -1] / scaling['x']['delta
 x0['l_t'] = np.array(plot_dict['x']['l_t'])[0, -1] / scaling['x']['l_t']
 x0['dl_t'] = np.array(plot_dict['x']['dl_t'])[0, -1] / scaling['x']['dl_t']
 
+data_list = [x0[elem].full().squeeze() for elem in x0.keys()]
+
+# Ensure all elements are at least 1-dimensional by using `np.atleast_1d`
+data_list = [np.atleast_1d(item) for item in data_list]
+
+# Now concatenate them
+a = np.concatenate(data_list)
+x0 = ca.DM(a)
 # Scaled algebraic vars
 z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z']['lambda10']
 
@@ -403,7 +412,7 @@ z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z']['lambda10']
 
 # initialize simulation
 tsim = [0.0]
-xsim = [x0.cat.full().squeeze()]
+xsim = [x0.full().squeeze()]
 zsim = [z0.cat.full().squeeze()]
 usim = []
 fsim = []
@@ -414,6 +423,7 @@ N_mpc_fail = 0
 # Loop through time steps
 N_max_fail = 10 # stop count for failed MPC evaluations
 N_steps = int(t_end / dt)
+u_ndi = []
 for k in range(N_steps):
 
     # current time
@@ -454,20 +464,23 @@ for k in range(N_steps):
         V_shifted = out['V_shifted']
         w0 = V_shifted.full().squeeze().tolist()
 
-        
-        
-
         # embed NDI
         a_ndi = mpc.trial.nlp.V(V_shifted) 
         mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(a_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
         if mpc_opts['mpc']['ndi_included']:
                 # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
-                u0_ndi = mpc.rotation_ndi_controller(a_ndi['x',0], mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',0], params['theta0'], architecture)
-                u0_call = out['u0'] + ca.vertcat(ca.GenDM_zeros(6,1), u0_ndi, ca.GenDM_zeros(1,1))
+                u0_ndi = mpc.rotation_ndi_controller(x0, mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',0], params['theta0'], architecture)
+                if current_time % 0.03 < 1e-6:
+                    u0_call = out['u0'] + ca.vertcat(ca.GenDM_zeros(6,1), u0_ndi, ca.GenDM_zeros(1,1))
+                    u_ndi.append(u0_ndi)
+                else:
+                    u0_call = out['u0']
+        # elif mpc_opts['mpc']['L1_included']:
+        #     u0_L1 = mpc.rotation_L1_controller(a_ndi['x',0])
         else:
-             u0_call = out['u0']
-        # fill in controls
+            u0_call = out['u0']
+        # fill in controls       
         u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
         u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
 
@@ -519,7 +532,7 @@ P_ave_ext = np.sum(P_inst[1:] * np.array([tsim[i+1]-tsim[i] for i in range(0,len
 
 # end of simulation
 print("end of simulation...")
-
+#%%
 # ----------------- specific plots ----------------- #
 
 # Legend labels
@@ -536,9 +549,9 @@ ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
 ax.set_zlabel(ax.get_zlabel(), fontsize=12)
-ax.set_xlim([0,400])
-ax.set_ylim([-200,200])
-ax.set_zlim([0,400])
+ax.set_xlim([0,700])
+ax.set_ylim([-300,300])
+ax.set_zlim([0,600])
 ax.view_init(azim=-70, elev=20)
 l = ax.get_lines()
 l[0].set_color('b')
