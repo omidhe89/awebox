@@ -115,9 +115,9 @@ def rk4root(name, dae, rootfinder, options):
             xf = x0
 
         #rk4 with rootfinder step
-        [xf, zf, qf] = rk4root_step(odef, rootfinder, quadf, h, xf, z0, p, qf)
+        [xf, zf, qf, x0_dot] = rk4root_step(odef, rootfinder, quadf, h, xf, z0, p, qf)
 
-    I = cas.Function(name, [x0, z0, p], [xf, zf, qf], ['x0','z0','p'],['xf','zf','qf'])
+    I = cas.Function(name, [x0, z0, p], [xf, zf, qf, x0_dot], ['x0','z0','p'],['xf','zf','qf', 'x0_dot'])
 
     return I
 
@@ -146,4 +146,6 @@ def rk4root_step(my_ode, rootfinder, quad, h, x0, z_guess, p, q0):
    zout = rootfinder(z, xout, p)
    qout = (q0 + h * (qk1 + 2 * qk2 + 2* qk3 + qk4) / 6)
 
-   return [xout, zout, qout]
+   xdot_out = my_ode(xout, p, zout)
+#    xdot_out = k1
+   return [xout, zout, qout, xdot_out]

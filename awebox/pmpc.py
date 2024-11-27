@@ -738,8 +738,27 @@ class Pmpc(object):
             u_ndi = ct.diag([1.396, 1.2216, 1.0472]) @ (delta_ndi - x0[18:21]) #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
         return u_ndi
     
-    # def l1_adaptive_controller(self, x0, ts,  parameters, architecture):
-        
+    def rotation_indi_controller(self, x0, x0dot, xdot_mpc, parameters, architecture):
+        j = ct.reshape(parameters[-12:-3],(3,3))
+        nu =  xdot_mpc[6:9] 
+        du_indi = []
+        for kite in architecture.kite_nodes:
+            F = self.__f_rot_fun[kite](x0, parameters)
+            G = self.__g_rot_fun[kite](x0, parameters)
+            du_indi = ct.inv(j @ G) @ j @ (nu - x0dot[6:9])
+            u_indi =  du_indi #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
+        return u_indi
+    # def l1_adaptive_controller(self, xk, x_hat, u_L1_pre, Ts, parameters, architecture):
+    #     omega_co = self.omega_co
+    #     x_tilde = x_hat - xk
+    #     x_mpc = self.__w0['x'][0]
+    #     A_m = self.A_omega
+    #     Phi =  np.linalg.inv(A_m) @ np.exp(A_m * Ts - np.identity(3))
+    #     for kite in architecture.kite_nodes:
+    #         F = self.__f_rot_fun[kite](x_mpc, parameters)
+    #         G = self.__g_rot_fun[kite](x_mpc, parameters)
+    #         sigma_hat = - np.linalg.inv(G) @ np.linalg.inv(A_m) @ (np.exp(A_m * Ts) @ x_tilde)
+    #         u_L1 = u_L1_pre * np.exp(-omega_co * Ts) - sigma_hat * (1 - np.exp(-omega_co * Ts))   
     #     return u_L1
 
     @property
