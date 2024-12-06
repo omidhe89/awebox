@@ -701,8 +701,8 @@ class Pmpc(object):
         w = ct.SX.sym('w', self.__nx+self.__nu+self.__nz)
         w_ref = ct.SX.sym('w_ref', self.__nx+self.__nu+self.__nz)
         W = ct.SX.sym('W', self.__nx+self.__nu+self.__nz)
+        # f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref)) - w[-1] * w[-self.__nu-self.__nz-1] * w[-self.__nu-self.__nz-2]
         f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref))
-
         return ct.Function('tracking_cost', [w, w_ref, W], [f_t])
 
     def __extract_aerodynamic(self, architecture):
@@ -746,8 +746,10 @@ class Pmpc(object):
             F = self.__f_rot_fun[kite](x0, parameters)
             G = self.__g_rot_fun[kite](x0, parameters)
             du_indi = ct.inv(j @ G) @ j @ (nu - x0dot[6:9])
-            u_indi =  du_indi #self.A_actuator / ct.diag([0.78, 0.698, 0.78])
+            u_indi =  du_indi #x0[18:21]
         return u_indi
+    
+    
     # def l1_adaptive_controller(self, xk, x_hat, u_L1_pre, Ts, parameters, architecture):
     #     omega_co = self.omega_co
     #     x_tilde = x_hat - xk

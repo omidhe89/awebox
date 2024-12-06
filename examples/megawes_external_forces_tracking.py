@@ -37,7 +37,7 @@ compilation_flag = False
 # ----------------- set trajectory options ----------------- #
 #%%
 # indicate desired system architecture
-aero_model='VLM'
+aero_model='CFD'
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options = set_megawes_path_generation_settings(aero_model, options)
@@ -56,7 +56,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 90 # approximately 40 per loop
+options['nlp.n_k'] = 60 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
@@ -71,31 +71,40 @@ trial = awe.Trial(optimization_options, 'MegAWES')
 trial.build()
 trial.optimize(options_seed=optimization_options)
 
-trial.plot(['isometric'])
+trial.plot(['isometric', 'states'])
 # reference power
 P_ave_ref = trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]
 
 # ----------------- set tracking options for MPC and integrator ----------------- #
 #%%
+import sklearn
+# load gp from CFD
+# Load the saved model from the file
+with open('../gp_model.pkl', 'rb') as f:
+    gp_loaded = pickle.load(f)
+
+with open('../gp_scaler.pkl', 'rb') as f:
+    gp_scaler = pickle.load(f)
+
 # simulation horizon
-t_end = 3*trial.visualization.plot_dict['theta']['t_f']
+t_end = 4*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 traj_options = {}
 traj_options = copy.deepcopy(optimization_options)
-tracking_options = set_megawes_path_tracking_settings('ALM', traj_options)
-
+tracking_options = set_megawes_path_tracking_settings('CFD', traj_options)
+# tracking_options['params.wind.log_wind.z0_air'] = 0.01
 # set MPC options
-ts = 0.125 # sampling time (length of one MPC window)
+ts = 0.25 # sampling time (length of one MPC window)
 N_mpc = 12 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 1000
-tracking_options['mpc.max_cpu_time'] = 10.
+tracking_options['mpc.max_iter'] = 30
+tracking_options['mpc.max_cpu_time'] = 0.25
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
 # simulation options
-N_dt = 25 # integrator steps within one sampling time
+N_dt = ts / 0.005 # integrator steps within one sampling time
 N_sim = int(round(t_end/ts)) # number of MPC evaluations
 tracking_options['sim.number_of_finite_elements'] = N_dt
 tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
@@ -108,19 +117,26 @@ trial.options_seed = tracking_options
 # create MPC options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
-mpc_opts['mpc']['max_iter'] = 1000
-mpc_opts['mpc']['max_cpu_time'] = 10.
+mpc_opts['mpc']['max_iter'] = 30
+mpc_opts['mpc']['max_cpu_time'] = 0.25
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-mpc_opts['mpc']['ndi_included'] = False
+mpc_opts['mpc']['ndi_included'] = True
+
+if not mpc_opts['mpc']['ndi_included']:
+    tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([20, 10, 10])*np.pi/180 # Surface deflections [deg]
+    tracking_options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
 # MPC weights
 nx = 23
 nu = 10
-Q = 0.56 * np.ones((nx, 1))
-# Q[6:9]  = 0.5 * np.ones((3, 1))
-R = 0.45 * np.ones((nu, 1))
-P = 0.6 * np.ones((nx, 1))
-
+Q = 0.8 * np.ones((nx, 1))
+# Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
+# Q[18:21]  = 0.6 * np.ones((3, 1))  # control surafaces deflections
+R = 0.35 * np.ones((nu, 1))
+P = 1 * np.ones((nx, 1))
+# Q = 0.5 * np.ones((nx, 1))
+# R = np.ones((nu, 1))
+# P = np.ones((nx, 1))
 # create PMPC object (requires feed-in of tracking options to trial)
 mpc = pmpc.Pmpc(mpc_opts['mpc'], ts, trial)
 
@@ -406,6 +422,12 @@ data_list = [np.atleast_1d(item) for item in data_list]
 # Now concatenate them
 a = np.concatenate(data_list)
 x0 = ca.DM(a)
+# perurbated_x0 = ca.GenDM_zeros(23,1)
+# for iii in range (30):
+#     perurbated_x0 += 0.000 * x0 * np.random.randn(23,1)
+# perurbated_x0[-2:] = ca.GenDM_zeros(2,1)
+# x0 = x0 + perurbated_x0/30
+# x0 = x0 + ca.vertcat(ca.GenDM_zeros(3,1), -1.00*ca.GenDM_ones(3,1) + 0.5*np.random.randn(3,1), -0.005*ca.GenDM_ones(3,1) + 0.0005*np.random.randn(3,1),ca.GenDM_zeros(14,1))   
 # Scaled algebraic vars
 z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z']['lambda10']
 
@@ -418,28 +440,29 @@ zsim = [z0.cat.full().squeeze()]
 usim = []
 fsim = []
 msim = []
+fsim_pert = []
+msim_pert  = []
 stats = []
 N_mpc_fail = 0
 
 # Loop through time steps
-N_max_fail = 5 # stop count for failed MPC evaluations
+N_max_fail = 1000 # stop count for failed MPC evaluations
 N_steps = int(t_end / dt)
 u_ndi = [ca.GenDM_zeros(3,1)]
+u0_call = ca.GenDM_zeros(10,1)
+x0_dot = mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(w0))['x',0]#ca.GenDM_zeros(nx,1) #
 for k in range(N_steps):
 
     # current time
     current_time = k * dt
-
     # evaluate MPC
     if (k % N_dt) < 1e-6:
 
         # ----------------- evaluate mpc step ----------------- #
         print(str(k)+'/'+str(N_steps)+': evaluate MPC step') 
-        x0 = x0 + ca.vertcat(0.001 * np.random.randn(21,1), ca.GenDM_zeros(2,1))   
         # initial guess
         if k == 0:
             w0 = w0.cat.full().squeeze().tolist()
-            x0_dot = ca.GenDM_zeros(nx,1)
         # get reference time
         tgrids = F_tgrids(t0 = current_time)
         for grid in list(tgrids.keys()):
@@ -474,9 +497,17 @@ for k in range(N_steps):
         if mpc_opts['mpc']['ndi_included']:
             # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
             # u0_ndi = mpc.rotation_ndi_controller(x0, mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',0], params['theta0'], architecture)
-            u0_ndi = mpc.rotation_indi_controller(x0, x0_dot, tmp_ndi['xdot'][1] ,params['theta0'], architecture) #mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',1]
+            ddelta_indi = mpc.rotation_indi_controller(x0, x0_dot, tmp_ndi['xdot'][0], params['theta0'], architecture) #mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',1] or  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',0],  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',1]
+            delta_indi =  tmp_ndi['x'][0][18:21] + ddelta_indi
+            delta_indi = np.clip(delta_indi.full().T, -np.array([20, 10, 10])*np.pi/180, np.array([20, 10, 10])*np.pi/180)
+            delta_dot_indi = out['u0'][6:9] + ddelta_indi / ts
+            delta_dot_indi = np.clip(delta_dot_indi.full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
+            # u0_ndi = delta_dot_indi
+            u0_ndi = delta_dot_indi.T - ca.diag([1.396, 2.2216, 2.0472]) @ (delta_indi.T - x0[18:21].full())
             # u_winch = 10.15 * ( tmp_ndi['x'][0][-1] -  x0[-1]) 
-            u0_call = out['u0'] +  ca.vertcat(ca.GenDM_zeros(6,1), u0_ndi * scaling['u']['ddelta10'], ca.GenDM_zeros(1,1)) #
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), u0_ndi * scaling['u']['ddelta10'], out['u0'][-1]) #
+            # u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
+
             u_ndi.append(u0_ndi)
         # elif mpc_opts['mpc']['L1_included']:
         #     u0_L1 = mpc.rotation_L1_controller(a_ndi['x',0])
@@ -506,10 +537,26 @@ for k in range(N_steps):
     aero_out = F_aero(x0=x0, u0=u0)
 
     # fill in forces and moments
-    dev_F_ext =  0.023 * aero_out['F_ext'] * np.random.randn(3,1)
-    dev_M_ext =  0.023 * aero_out['M_ext'] * np.random.randn(3,1)
-    u0['f_fict10'] = (aero_out['F_ext']  + dev_F_ext) / scaling['u']['f_fict10']  # external force in inertial frame
-    u0['m_fict10'] = (aero_out['M_ext']  + dev_M_ext)/ scaling['u']['m_fict10']  # external moment in body-fixed frame
+    perturbation_F = ca.GenDM_zeros(3,1)
+    perturbation_M = ca.GenDM_zeros(3,1)
+    # for ii in range(50):
+    #         perturbation_F += np.diag([-0.051, -0.001, -0.051] @ np.random.randn(3, 1)) @ aero_out['F_ext']   # Adding random noise
+    #         perturbation_M +=  np.diag([1.1, 0.1, 0.1]) @ aero_out['M_ext'] - np.diag([-0.1, 0.01, 0.01] @ np.random.randn(3, 1)) * aero_out['M_ext'] 
+    # dev_F_ext = perturbation_F / 50
+    # dev_M_ext =  perturbation_M / 50
+    
+    aero_out_pertubrated = {}
+    # aero_out_pertubrated['F_ext'] = aero_out['F_ext']  - dev_F_ext
+    # aero_out_pertubrated['M_ext'] = aero_out['M_ext']  - dev_M_ext
+    scaled_inputs = gp_scaler.transform(ca.vertcat(x0[6:9], x0[3:6], x0[18:21]).full().reshape(1,-1))
+    gp_aero, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
+    perturbation_F = 0.066 * gp_aero[:,:3]
+    perturbation_M = 0.78 * gp_aero[:,3:]
+    aero_out_pertubrated['F_ext'] = aero_out['F_ext'] - perturbation_F.T
+    aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
+
+    u0['f_fict10'] = (aero_out_pertubrated['F_ext']) / scaling['u']['f_fict10']  # external force in inertial frame
+    u0['m_fict10'] = (aero_out_pertubrated['M_ext'])/ scaling['u']['m_fict10']  # external moment in body-fixed frame
 
     # fill controls and aerodynamics into dae parameters
     p0['u'] = u0
@@ -517,6 +564,11 @@ for k in range(N_steps):
     # ----------------- evaluate system dynamics ----------------- #
 
     # evaluate dynamics with integrator
+    # perurbated_x0 = ca.GenDM_zeros(23,1)
+    # for iii in range (20):
+    #         perurbated_x0 += 0.000000 * np.abs(x0) * np.random.randn(23,1)
+    # perurbated_x0[-2:] = ca.GenDM_zeros(2,1)
+    # x0 = x0 + perurbated_x0 / 20
     out = F_int(x0=x0, p0=p0)
     z0 = out['zf']
     x0 = out['xf']
@@ -529,7 +581,8 @@ for k in range(N_steps):
     usim.append([u0.cat.full().squeeze()][0])
     fsim.append(aero_out['F_ext'].full().squeeze())
     msim.append(aero_out['M_ext'].full().squeeze())
-
+    fsim_pert.append(aero_out_pertubrated['F_ext'].full().squeeze()) #
+    msim_pert.append(aero_out_pertubrated['M_ext'].full().squeeze()) #
     if N_mpc_fail == N_max_fail:
         print(str(N_max_fail)+" failed MPC evaluations: Interrupt loop")
         break
@@ -543,6 +596,7 @@ P_ave_ext = np.sum(P_inst[1:] * np.array([tsim[i+1]-tsim[i] for i in range(0,len
 
 # end of simulation
 print("end of simulation...")
+#********************************************************************************************************************************************
 #%%
 # ----------------- specific plots ----------------- #
 
@@ -676,14 +730,29 @@ def visualize_mpc_perf(stats):
    ax2.set_ylabel('Walltime [s]', fontsize=14)
    ax1.set_xlim([1, eval.max()])
    ax1.legend(loc=2)
-   ax1.set_ylim([0,250])
-   ax2.set_ylim([0,6])
+   ax1.set_ylim([0,50])
+   ax2.set_ylim([0,1])
 
    return fig
 
 fig = visualize_mpc_perf(stats)
 fig.savefig('outputs_megawes_external_forces_tracking_plot_mpc_performance.png')
 
+
+# plot aeroforces/ torques and their pertubrated equvalented
+fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 8), sharex=True)
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
+for i in range(3):
+        ax[i].plot(tsim[:-1],np.array([f[i] for f in fsim]),'-b', label='awe_aero')
+        ax[i].plot(tsim[:-1],np.array([f[i] for f in fsim_pert]),'-r', label='gp_aero')
+        ax[i].legend(fontsize=8)
+
+fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 8), sharex=True)
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
+for i in range(3):
+        ax[i].plot(tsim[:-1],np.array([m[i] for m in msim]),'-b', label='awe_aero')
+        ax[i].plot(tsim[:-1],np.array([m[i] for m in msim_pert]),'-r', label='gp_aero')
+        ax[i].legend(fontsize=8)
 # ----------------- end ----------------- #
 
-# %%
+#%%
