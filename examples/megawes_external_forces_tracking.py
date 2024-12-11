@@ -93,9 +93,9 @@ tracking_options = set_megawes_path_tracking_settings('CFD', traj_options)
 # tracking_options['params.wind.log_wind.z0_air'] = 0.01
 # set MPC options
 ts = 0.3 # sampling time (length of one MPC window)
-N_mpc = 11 # MPC horizon (number of MPC windows in prediction horizon)
+N_mpc = 9 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 30
+tracking_options['mpc.max_iter'] = 20
 tracking_options['mpc.max_cpu_time'] = 0.295
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
@@ -114,7 +114,7 @@ trial.options_seed = tracking_options
 # create MPC options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
-mpc_opts['mpc']['max_iter'] = 30
+mpc_opts['mpc']['max_iter'] = 20
 mpc_opts['mpc']['max_cpu_time'] = 0.295
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
@@ -211,7 +211,6 @@ q0_out = integrator_outputs['qf']
 x0_dot_out = integrator_outputs['x0_dot']
 # Create CasADi function
 F_int = ca.Function('F_int', [x0_init, p0_init], [x0_out, z0_out, q0_out, x0_dot_out], ['x0', 'p0'], ['xf', 'zf', 'qf', 'x0_dot'])
-
 # ----------------- create CasADi function for external aerodynamics ----------------- #
 # F_aero: Returns f_earth and m_body for specified states and controls
 
@@ -310,6 +309,17 @@ u_si = ca.vertcat(*u_si)
 # helper function
 helper_functions = ca.Function('helper_functions',[V], [V_shifted, u_si], ['V'], ['V_shifted', 'u0'])
 
+
+# ******************* helper function of indi controller *************************
+x0 = ca.MX.sym('x0', nx)
+x0_dot = ca.MX.sym('x0_dot', nx)
+tmp_V = mpc.trial.nlp.V
+indi_coeffs = ca.MX.sym('indi_coeffs', 3, 3)
+ddelta_indi = mpc.rotation_indi_controller(x0, x0_dot, tmp_V['xdot'][0], params['theta0'], architecture) #mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',1] or  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',0],  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',1]
+delta_indi =  x0[18:21] + ddelta_indi
+delta_indi = ca.fmin(ca.fmax(delta_indi, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
+u0_ndi = indi_coeffs @ (delta_indi - tmp_V['x'][0][18:21])
+helper_indi_function = ca.Function('helper_indi_function', [x0, x0_dot, tmp_V, indi_coeffs], [u0_ndi], ['x0', 'x0_dot', 'tmp_V', 'indi_coeffs'], ['u0_ndi'])
 # ----------------- save and compile dependencies ----------------- #
 if compilation_flag:
 
@@ -371,6 +381,13 @@ if compilation_flag:
     os.system("mv helper_functions.c"+" "+src_filename)
     os.system("gcc -fPIC -shared -O3 "+src_filename+" -o "+lib_filename)
 
+    # compile dependencies helper_functions
+    src_filename = output_folder + 'helper_indi_function.c'
+    lib_filename = output_folder + 'helper_indi_function.so'
+    helper_indi_function.generate('helper_indi_function.c')
+    os.system("mv helper_indi_function.c"+" "+src_filename)
+    os.system("gcc -fPIC -shared -O3 "+src_filename+" -o "+lib_filename)
+
     # create CasADi symbolic variables and dicts
     x0 = system_model.variables_dict['x'](0.0)  # initialize states
     u0 = system_model.variables_dict['u'](0.0)  # initialize controls
@@ -387,7 +404,11 @@ if compilation_flag:
     filename = output_folder + 'simulation_variables.pckl'
     with open(filename, 'wb') as handle:
         pickle.dump(simulation_variables, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+    
+    # save mpc solution format
+    filename = output_folder + 'mpc_sol.pckl'
+    with open(filename, 'wb') as handle:
+        pickle.dump(mpc.trial.nlp.V, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # ----------------- initialize simulation ----------------- #
 
 # create CasADi symbolic variables and dicts
@@ -494,22 +515,9 @@ for k in range(N_steps):
         mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
         if mpc_opts['mpc']['ndi_included']:
-            # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
-            # u0_ndi = mpc.rotation_ndi_controller(x0, mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',0], params['theta0'], architecture)
-            ddelta_indi = mpc.rotation_indi_controller(x0, x0_dot, tmp_ndi['xdot'][0], params['theta0'], architecture) #mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',1] or  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',0],  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',1]
-            delta_indi =  x0[18:21] + ddelta_indi
-            delta_indi = np.clip(delta_indi.full().T, -np.array([15, 10, 10])*np.pi/180, np.array([15, 10, 10])*np.pi/180)
-            
-            # ********* method one (P, PI, and PD) **********: 
-            # delta_dot_indi = x0_dot[18:21] + ddelta_indi / ts
-            # delta_dot_indi = np.clip(delta_dot_indi.full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
-            err_delta.append(delta_indi.T - tmp_ndi['x'][0][18:21])
-            u0_ndi = 1.35 * ca.diag([1.396, 1.396, 1.396]) @ err_delta[-1] # - 0.3 * ts*sum(err_delta)# - 0.15 * ca.diag([1.396, 1.396, 1.396]) @ (delta_dot_indi.T - tmp_ndi['xdot'][0][18:21])
-            
-            # ********* method two (state linearization) **********  
-            # u0_ndi = eye(3) @ delta_indi.T - ca.diag([2, 1, 1]) @ tmp_ndi['x'][0][18:21]
-            
-            
+
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.35 * ca.diag([1.396, 1.396, 1.396]))
+                       
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
@@ -557,7 +565,7 @@ for k in range(N_steps):
     scaled_inputs = gp_scaler.transform(ca.vertcat(x0[6:9], x0[3:6], x0[18:21]).full().reshape(1,-1))
     gp_aero, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
     perturbation_F = 0.065 * gp_aero[:,:3]
-    perturbation_M = 0.82 * gp_aero[:,3:]
+    perturbation_M = 0.80 * gp_aero[:,3:]
     aero_out_pertubrated['F_ext'] = aero_out['F_ext'] - perturbation_F.T
     aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
 

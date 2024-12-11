@@ -15,7 +15,7 @@ Current issues:
 - option 'single_reelout' doesn't work with MPC, use 'simple' instead.
 - option 'collocation_nodes' doesn't work with MPC, use 'shooting_nodes' instead.
 """
-
+#%%
 # imports
 import casadi as ca
 import numpy as np
@@ -65,7 +65,7 @@ if not os.path.isdir(output_folder):
     sys.exit()
 
 # load trial results
-awes = csv2dict(output_folder+'megawes_optimised_path_vlm.csv')
+awes = csv2dict(output_folder+'megawes_optimised_path_cfd.csv')
 
 # load parameters and CasADi symbolic variables
 filename = output_folder + 'simulation_variables.pckl'
@@ -86,6 +86,10 @@ for var in ['lbw', 'ubw', 'lbg', 'ubg']:
     with open(filename, 'rb') as handle:
         bounds[var] = pickle.load(handle)
 
+# load mpc solution V
+filename = output_folder + 'mpc_sol.pckl'
+with open(filename, 'rb') as handle:
+        V_mpc = pickle.load(handle)
 # ----------------- initialize states/alg. vars ----------------- #
 
 # set mpc options
@@ -98,6 +102,7 @@ mpc_opts['ipopt.sb'] = "yes"
 mpc_opts['print_time'] = 0
 mpc_opts['record_time'] = 1
 
+indi_flag = True
 # ----------------- load compiled CasADi functions ----------------- #
 
 # Load function objects and solver
@@ -106,6 +111,7 @@ F_ref = ca.external('F_ref', output_folder + 'F_ref.so')
 F_aero = ca.external('F_aero', output_folder + 'F_aero.so')
 F_int = ca.external('F_int', output_folder + 'F_int.so')
 helpers = ca.external('helper_functions', output_folder + 'helper_functions.so')
+helper_indi = ca.external('helper_indi_function', output_folder + 'helper_indi_function.so')
 solver = ca.nlpsol('solver', 'ipopt', output_folder + 'mpc_solver.so', mpc_opts)
 
 # ----------------- initialize states and algebraic variabless ----------------- #
@@ -126,9 +132,9 @@ z0['z'] = np.array(awes['z_lambda10_0'][-1]) / scaling['z']['lambda10']
 
 # simulation settings
 t_f = awes['time'][-1] # trajectory period
-t_end = 1 * t_f # simulation horizon
-ts = 0.1 # sampling time
-N_dt = 20 # time steps per sampling time
+t_end = 5 * t_f # simulation horizon
+ts = 0.3 # sampling time
+N_dt = ts / 0.005 # time steps per sampling time
 dt = ts/N_dt # time step
 N_steps = int(t_end / dt)
 
@@ -141,9 +147,25 @@ fsim = []
 msim = []
 stats = []
 
+
 # loop through time steps
 N_mpc_fail = 0
-N_max_fail = 10 # stop count for failed MPC evaluations
+N_max_fail = 1000 # stop count for failed MPC evaluations
+
+# solve MPC problem
+nx = 23
+nu = 10
+Q = 0.9 * np.ones((nx, 1))
+# Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
+Q[18:21]  = 0.6 * np.ones((3, 1))  # control surafaces deflections
+R = 0.65 * np.ones((nu, 1))
+P = 1 * np.ones((nx, 1))
+P[18:21]  = 0.9 * np.ones((3, 1))
+u_ref = 12.
+
+u0_call = ca.GenDM_zeros(nu,1)
+x0_dot = ca.GenDM_zeros(nx,1)
+
 for k in range(N_steps):
 
     # current time
@@ -167,13 +189,7 @@ for k in range(N_steps):
         # get reference
         ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'])['ref']
 
-        # solve MPC problem
-        nx = 23
-        nu = 10
-        Q = np.ones((nx, 1))
-        R = np.ones((nu, 1))
-        P = np.ones((nx, 1))
-        u_ref = 12.
+        
         sol = solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
                        p=ca.vertcat(x0, ref, u_ref, Q, R, P))
 
@@ -183,21 +199,31 @@ for k in range(N_steps):
            N_mpc_fail += 1
 
         # MPC outputs
-        out = helpers(V=sol['x'])
+        out_ctrl = helpers(V=sol['x'])
 
         # write shifted initial guess
-        V_shifted = out['V_shifted']
+        V_shifted = out_ctrl['V_shifted']
         w0 = V_shifted.full().squeeze().tolist()
-
+        # embed NDI
+        tmp_ndi = V_mpc(V_shifted)
         # retrieve new controls
-        u0_call = out['u0']
+        if indi_flag:
+
+            u0_ndi = helper_indi(x0, x0_dot, tmp_ndi, 1.35 * ca.diag([1.396, 1.396, 1.396]))         
+            u_winch = 0
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
+            print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC + indi step")
+        else:
+            u0_call = out_ctrl['u0']
+            # message
+            print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC step")
 
         # fill in controls
         u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
         u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
 
-        # message
-        print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC step")
+        
 
     else:
         # message
@@ -222,7 +248,7 @@ for k in range(N_steps):
     z0 = out['zf']
     x0 = out['xf']
     qf = out['qf']
-
+    x0_dot = out['x0_dot']
     # Simulation outputs
     tsim.append((k+1) * dt)
     xsim.append(out['xf'].full().squeeze())
@@ -393,3 +419,5 @@ fig = visualize_mpc_perf(stats)
 fig.savefig('outputs_megawes_external_forces_simulation_plot_mpc_performance.png')
 print('end')
 # ----------------- end ----------------- #
+
+# %%
