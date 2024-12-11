@@ -146,6 +146,6 @@ def rk4root_step(my_ode, rootfinder, quad, h, x0, z_guess, p, q0):
    zout = rootfinder(z, xout, p)
    qout = (q0 + h * (qk1 + 2 * qk2 + 2* qk3 + qk4) / 6)
 
-   xdot_out = my_ode(xout, p, zout)
-#    xdot_out = k1
+#    xdot_out = my_ode(xout, p, zout)
+   xdot_out = k1
    return [xout, zout, qout, xdot_out]
