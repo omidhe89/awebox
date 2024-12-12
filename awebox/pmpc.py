@@ -701,8 +701,8 @@ class Pmpc(object):
         w = ct.SX.sym('w', self.__nx+self.__nu+self.__nz)
         w_ref = ct.SX.sym('w_ref', self.__nx+self.__nu+self.__nz)
         W = ct.SX.sym('W', self.__nx+self.__nu+self.__nz)
-        # f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref)) - w[-1] * w[-self.__nu-self.__nz-1] * w[-self.__nu-self.__nz-2]
-        f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref))
+        f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref)) - w[-1] * w[-self.__nu-self.__nz-1] * w[-self.__nu-self.__nz-2]
+        # f_t = ct.mtimes(ct.mtimes((w-w_ref).T, ct.diag(W)),(w-w_ref))
         return ct.Function('tracking_cost', [w, w_ref, W], [f_t])
 
     def __extract_aerodynamic(self, architecture):
@@ -750,18 +750,24 @@ class Pmpc(object):
         return u_indi
     
     
-    # def l1_adaptive_controller(self, xk, x_hat, u_L1_pre, Ts, parameters, architecture):
-    #     omega_co = self.omega_co
-    #     x_tilde = x_hat - xk
-    #     x_mpc = self.__w0['x'][0]
-    #     A_m = self.A_omega
-    #     Phi =  np.linalg.inv(A_m) @ np.exp(A_m * Ts - np.identity(3))
-    #     for kite in architecture.kite_nodes:
-    #         F = self.__f_rot_fun[kite](x_mpc, parameters)
-    #         G = self.__g_rot_fun[kite](x_mpc, parameters)
-    #         sigma_hat = - np.linalg.inv(G) @ np.linalg.inv(A_m) @ (np.exp(A_m * Ts) @ x_tilde)
-    #         u_L1 = u_L1_pre * np.exp(-omega_co * Ts) - sigma_hat * (1 - np.exp(-omega_co * Ts))   
-    #     return u_L1
+    def l1_adaptive_controller(self, xk, x_mpc, omega_hat_k, u_L1_pre, Ts, parameters, architecture):
+        omega_co = self.omega_co
+        omega_tilde = omega_hat_k - xk[6:9]
+        A_m = self.A_omega
+        Phi =  np.linalg.inv(A_m) @ np.exp(A_m * Ts - np.identity(3))
+        for kite in architecture.kite_nodes:
+            F = self.__f_rot_fun[kite](x_mpc, parameters)
+            G = self.__g_rot_fun[kite](x_mpc, parameters)
+            sigma_hat = - ct.inv(G) @ ct.inv(A_m) @ (np.exp(A_m * Ts) @ omega_tilde)
+            u_L1 = u_L1_pre * np.exp(-omega_co * Ts) - sigma_hat * (1 - np.exp(-omega_co * Ts))   
+        return u_L1, sigma_hat
+    
+    def L1_adaptive_estimator(self, x_k, x_mpc, omega_hat_k, u_L1_k, sigma_hat_k, Ts, parameters, architecture):
+        A_m = self.A_omega
+        for kite in architecture.kite_nodes:
+            F_k = self.__f_rot_fun[kite](x_mpc, parameters)
+            G_k = self.__g_rot_fun[kite](x_mpc, parameters)
+        return omega_hat_k + Ts*(F_k + G_k @ (u_L1_k + sigma_hat_k) + A_m @ (omega_hat_k - x_k[6:9]))
 
     @property
     def trial(self):

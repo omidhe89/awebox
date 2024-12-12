@@ -80,11 +80,13 @@ import sklearn
 with open('../gp_model.pkl', 'rb') as f:
     gp_loaded = pickle.load(f)
 
-with open('../gp_scaler.pkl', 'rb') as f:
-    gp_scaler = pickle.load(f)
+with open('../gp_scaler_i.pkl', 'rb') as f:
+    gp_scaler_i = pickle.load(f)
 
+with open('../gp_scaler_o.pkl', 'rb') as f:
+    gp_scaler_o = pickle.load(f)
 # simulation horizon
-t_end = 5*trial.visualization.plot_dict['theta']['t_f']
+t_end = 3*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 traj_options = {}
@@ -516,7 +518,7 @@ for k in range(N_steps):
         # retrieve new controls
         if mpc_opts['mpc']['ndi_included']:
 
-            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.35 * ca.diag([1.396, 1.396, 1.396]))
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.035 * ca.diag([1.396, 1.396, 1.396]))
                        
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
@@ -562,10 +564,11 @@ for k in range(N_steps):
     aero_out_pertubrated = {}
     # aero_out_pertubrated['F_ext'] = aero_out['F_ext']  - dev_F_ext
     # aero_out_pertubrated['M_ext'] = aero_out['M_ext']  - dev_M_ext
-    scaled_inputs = gp_scaler.transform(ca.vertcat(x0[6:9], x0[3:6], x0[18:21]).full().reshape(1,-1))
-    gp_aero, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
+    scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
+    gp_aero_scaled, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
+    gp_aero = gp_scaler_o.inverse_transform(gp_aero_scaled)
     perturbation_F = 0.065 * gp_aero[:,:3]
-    perturbation_M = 0.80 * gp_aero[:,3:]
+    perturbation_M = 0.8 * gp_aero[:,3:]
     aero_out_pertubrated['F_ext'] = aero_out['F_ext'] - perturbation_F.T
     aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
 
