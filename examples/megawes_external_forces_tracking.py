@@ -86,7 +86,7 @@ with open('../gp_scaler_i.pkl', 'rb') as f:
 with open('../gp_scaler_o.pkl', 'rb') as f:
     gp_scaler_o = pickle.load(f)
 # simulation horizon
-t_end = 3*trial.visualization.plot_dict['theta']['t_f']
+t_end = 4*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 traj_options = {}
@@ -98,7 +98,7 @@ ts = 0.3 # sampling time (length of one MPC window)
 N_mpc = 9 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
 tracking_options['mpc.max_iter'] = 20
-tracking_options['mpc.max_cpu_time'] = 0.295
+tracking_options['mpc.max_cpu_time'] = 0.3
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
@@ -117,12 +117,12 @@ trial.options_seed = tracking_options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
 mpc_opts['mpc']['max_iter'] = 20
-mpc_opts['mpc']['max_cpu_time'] = 0.295
+mpc_opts['mpc']['max_cpu_time'] = 0.3
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-mpc_opts['mpc']['ndi_included'] = True
+mpc_opts['mpc']['ctrl_type'] = 'L1' # choose between  none indi and L1
 
-if not mpc_opts['mpc']['ndi_included']:
+if mpc_opts['mpc']['ctrl_type'] == 'none':
     tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
     tracking_options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
 # MPC weights
@@ -514,19 +514,32 @@ for k in range(N_steps):
 
         # embed NDI
         tmp_ndi = mpc.trial.nlp.V(V_shifted) 
-        mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
+        mpc.A_omega  = -0.3 * np.eye(3)
+        # mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
-        if mpc_opts['mpc']['ndi_included']:
+        if mpc_opts['mpc']['ctrl_type'] == 'indi':
 
-            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.035 * ca.diag([1.396, 1.396, 1.396]))
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.35 * ca.diag([1.396, 1.396, 1.396]))
                        
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
 
             u_ndi.append(u0_ndi)
-        # elif mpc_opts['mpc']['L1_included']:
-        #     u0_L1 = mpc.rotation_L1_controller(a_ndi['x',0])
+        
+        
+        elif mpc_opts['mpc']['ctrl_type'] == 'L1':
+            if k == 0:
+                omega_hat_k = x0_dot[6:9]
+                delta_L1 = u0_call[6:9].full()
+
+            delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, ts, params['theta0'], architecture)
+            delta_L1 = ca.fmin(ca.fmax(delta_L1, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
+            omega_hat_k = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, ts,  params['theta0'], architecture)
+            u0_ndi = 0.5 * ca.diag([1.396, 1.396, 1.396]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
+            u_winch = 0
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            u_ndi.append(u0_ndi)
         else:
             u0_call = out_ctrl['u0']
 
@@ -535,8 +548,10 @@ for k in range(N_steps):
         u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
 
         # message
-        if mpc_opts['mpc']['ndi_included']:
+        if mpc_opts['mpc']['ctrl_type'] == 'indi':
             msg = "+ indi"
+        elif mpc_opts['mpc']['ctrl_type'] == 'L1':
+            msg = "+ L1"
         else:
             msg = " "   
                 
@@ -567,8 +582,8 @@ for k in range(N_steps):
     scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
     gp_aero_scaled, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
     gp_aero = gp_scaler_o.inverse_transform(gp_aero_scaled)
-    perturbation_F = 0.065 * gp_aero[:,:3]
-    perturbation_M = 0.8 * gp_aero[:,3:]
+    perturbation_F = 0.07 * gp_aero[:,:3]
+    perturbation_M = 0.81 * gp_aero[:,3:]
     aero_out_pertubrated['F_ext'] = aero_out['F_ext'] - perturbation_F.T
     aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
 
@@ -727,7 +742,7 @@ def visualize_mpc_perf(stats):
    for mask, clr, name in zip(mask_list, mask_clr, mask_name):
        ax1.bar(eval[mask], iterations[mask], color=clr, label=name)
    ax2.plot(eval, walltime, '-k')  # , markeredgecolor='k', markerfacecolor=clr, label=name)
-
+   ax2.plot([0, eval.max()], [0.3, 0.3], 'r--')
    # Layout
    ax1.set_title('Performance of MPC evaluations', fontsize=14)
    ax1.set_xlabel('Evaluations', fontsize=14)
@@ -735,8 +750,8 @@ def visualize_mpc_perf(stats):
    ax2.set_ylabel('Walltime [s]', fontsize=14)
    ax1.set_xlim([1, eval.max()])
    ax1.legend(loc=2)
-   ax1.set_ylim([0,50])
-   ax2.set_ylim([0,1])
+   ax1.set_ylim([0,35])
+   ax2.set_ylim([0,0.5])
 
    return fig
 

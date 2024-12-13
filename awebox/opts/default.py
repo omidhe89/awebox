@@ -190,7 +190,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
-        ('model',  'system_bounds', 'z',          'lambda',       [.01, cas.inf],                                                                   ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'z',          'lambda',       [0.1, cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
@@ -462,7 +462,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart', True,         ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
-        ('mpc', None,  None,    'ndi_included', False,               ('added ndi control input to MPC', None), 'x'),
+        ('mpc', None,  None,    'ctrl_type', 'none',                ('choose between: none, indi, l1 ', None), 'x'),
         ### ndi options
         ('ndi', None,  None,    'N',            10,                 ('controller simulation time', None), 'x'),
         ('ndi', None,  None,    'ctrl_params_omega',  np.array([0.1, 0.4, 0.25]), (' rotation controller parameters', None), 'x'),

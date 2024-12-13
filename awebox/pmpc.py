@@ -52,7 +52,7 @@ class Pmpc(object):
         self.__d = mpc_options['d']
         self.__scheme = mpc_options['scheme']
         self.__cost_type = mpc_options['cost_type']
-        self.__ndi_included = mpc_options['ndi_included']
+        self.__ctrl_type = mpc_options['ctrl_type']
         self.__pocp_trial = trial
         self.__ts = ts
         self.__mpc_options = mpc_options
@@ -224,7 +224,7 @@ class Pmpc(object):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
-        if self.__ndi_included:
+        if self.__ctrl_type == 'ndi':
             awelogger.logger.info("Compute MPC + NDI feedback...")    
         else:
             awelogger.logger.info("Compute MPC feedback...")
@@ -300,7 +300,7 @@ class Pmpc(object):
             u0 = ct.mtimes(self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
                     ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T)
         elif self.__mpc_options['u_param'] == 'zoh':
-            if self.__ndi_included:
+            if self.__ctrl_type == 'ndi':
                 # u0_ndi = self.__rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(self.__p0['ref']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
                 u0_ndi = self.rotation_ndi_controller(x0, self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['x',0], self.__pocp_trial.optimization.p_fix_num['theta0'], self.__trial.model.architecture)
                 u0 = self.__trial.nlp.V(sol['x'])['u',0] + ct.vertcat(ct.GenDM_zeros(6,1), u0_ndi, ct.GenDM_zeros(1,1))
@@ -751,14 +751,14 @@ class Pmpc(object):
     
     
     def l1_adaptive_controller(self, xk, x_mpc, omega_hat_k, u_L1_pre, Ts, parameters, architecture):
-        omega_co = self.omega_co
+        omega_co = 45
         omega_tilde = omega_hat_k - xk[6:9]
         A_m = self.A_omega
-        Phi =  np.linalg.inv(A_m) @ np.exp(A_m * Ts - np.identity(3))
+        Phi = ct.inv(A_m) @ (np.exp(A_m * Ts) - np.eye(3))
         for kite in architecture.kite_nodes:
             F = self.__f_rot_fun[kite](x_mpc, parameters)
             G = self.__g_rot_fun[kite](x_mpc, parameters)
-            sigma_hat = - ct.inv(G) @ ct.inv(A_m) @ (np.exp(A_m * Ts) @ omega_tilde)
+            sigma_hat = - ct.inv(G) @ ct.inv(Phi)  @ (np.exp(A_m * Ts) @ omega_tilde)
             u_L1 = u_L1_pre * np.exp(-omega_co * Ts) - sigma_hat * (1 - np.exp(-omega_co * Ts))   
         return u_L1, sigma_hat
     
