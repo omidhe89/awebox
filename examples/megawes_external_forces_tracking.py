@@ -86,7 +86,7 @@ with open('../gp_scaler_i.pkl', 'rb') as f:
 with open('../gp_scaler_o.pkl', 'rb') as f:
     gp_scaler_o = pickle.load(f)
 # simulation horizon
-t_end = 4*trial.visualization.plot_dict['theta']['t_f']
+t_end = 10*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 traj_options = {}
@@ -97,8 +97,8 @@ tracking_options = set_megawes_path_tracking_settings('CFD', traj_options)
 ts = 0.3 # sampling time (length of one MPC window)
 N_mpc = 9 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 20
-tracking_options['mpc.max_cpu_time'] = 0.3
+tracking_options['mpc.max_iter'] = 15
+tracking_options['mpc.max_cpu_time'] = 0.274
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
@@ -116,11 +116,11 @@ trial.options_seed = tracking_options
 # create MPC options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
-mpc_opts['mpc']['max_iter'] = 20
-mpc_opts['mpc']['max_cpu_time'] = 0.3
+mpc_opts['mpc']['max_iter'] = 18
+mpc_opts['mpc']['max_cpu_time'] = 0.274
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-mpc_opts['mpc']['ctrl_type'] = 'L1' # choose between  none indi and L1
+mpc_opts['mpc']['ctrl_type'] = 'L1' # choose between  none, indi, and L1
 
 if mpc_opts['mpc']['ctrl_type'] == 'none':
     tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
@@ -128,12 +128,12 @@ if mpc_opts['mpc']['ctrl_type'] == 'none':
 # MPC weights
 nx = 23
 nu = 10
-Q = 0.9 * np.ones((nx, 1))
+Q = 0.5 * np.ones((nx, 1))
 # Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
-Q[18:21]  = 0.6 * np.ones((3, 1))  # control surafaces deflections
-R = 0.65 * np.ones((nu, 1))
+Q[18:21]  = 0.5 * np.ones((3, 1))  # control surafaces deflections
+R = 0.25 * np.ones((nu, 1))
 P = 1 * np.ones((nx, 1))
-P[18:21]  = 0.9 * np.ones((3, 1))
+P[18:21]  = 0.6 * np.ones((3, 1))
 # Q = 0.5 * np.ones((nx, 1))
 # R = np.ones((nu, 1))
 # P = np.ones((nx, 1))
@@ -514,7 +514,8 @@ for k in range(N_steps):
 
         # embed NDI
         tmp_ndi = mpc.trial.nlp.V(V_shifted) 
-        mpc.A_omega  = -0.3 * np.eye(3)
+        mpc.A_omega  = -ca.diag([1.25, 1.25, 1.25])#-1.25 * np.eye(3)
+        omega_co = 8
         # mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
         if mpc_opts['mpc']['ctrl_type'] == 'indi':
@@ -530,10 +531,10 @@ for k in range(N_steps):
         
         elif mpc_opts['mpc']['ctrl_type'] == 'L1':
             if k == 0:
-                omega_hat_k = x0_dot[6:9]
+                omega_hat_k = x0[6:9]
                 delta_L1 = u0_call[6:9].full()
 
-            delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, ts, params['theta0'], architecture)
+            delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, omega_co, ts, params['theta0'], architecture)
             delta_L1 = ca.fmin(ca.fmax(delta_L1, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
             omega_hat_k = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, ts,  params['theta0'], architecture)
             u0_ndi = 0.5 * ca.diag([1.396, 1.396, 1.396]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
@@ -742,7 +743,7 @@ def visualize_mpc_perf(stats):
    for mask, clr, name in zip(mask_list, mask_clr, mask_name):
        ax1.bar(eval[mask], iterations[mask], color=clr, label=name)
    ax2.plot(eval, walltime, '-k')  # , markeredgecolor='k', markerfacecolor=clr, label=name)
-   ax2.plot([0, eval.max()], [0.3, 0.3], 'r--')
+   ax2.plot([0, eval.max()], [ts, ts], 'r--')
    # Layout
    ax1.set_title('Performance of MPC evaluations', fontsize=14)
    ax1.set_xlabel('Evaluations', fontsize=14)

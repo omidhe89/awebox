@@ -750,8 +750,7 @@ class Pmpc(object):
         return u_indi
     
     
-    def l1_adaptive_controller(self, xk, x_mpc, omega_hat_k, u_L1_pre, Ts, parameters, architecture):
-        omega_co = 45
+    def l1_adaptive_controller(self, xk, x_mpc, omega_hat_k, u_L1_pre, omega_co, Ts, parameters, architecture):
         omega_tilde = omega_hat_k - xk[6:9]
         A_m = self.A_omega
         Phi = ct.inv(A_m) @ (np.exp(A_m * Ts) - np.eye(3))
