@@ -34,10 +34,10 @@ compilation_flag = False
 # ----------------- set trajectory options ----------------- #
 #%%
 # indicate desired system architecture
-aero_model='CFD'
+aero_model_pp='CFD'
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options = set_megawes_path_generation_settings(aero_model, options)
+options = set_megawes_path_generation_settings(aero_model_pp, options)
 
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
@@ -53,7 +53,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 90 # approximately 40 per loop
+options['nlp.n_k'] = 60 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
@@ -86,19 +86,20 @@ with open('../gp_scaler_i.pkl', 'rb') as f:
 with open('../gp_scaler_o.pkl', 'rb') as f:
     gp_scaler_o = pickle.load(f)
 # simulation horizon
-t_end = 10*trial.visualization.plot_dict['theta']['t_f']
+t_end = 6*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
+aero_model_trac='CFD'
 traj_options = {}
 traj_options = copy.deepcopy(optimization_options)
-tracking_options = set_megawes_path_tracking_settings('CFD', traj_options)
+tracking_options = set_megawes_path_tracking_settings(aero_model_trac, traj_options)
 # tracking_options['params.wind.log_wind.z0_air'] = 0.01
 # set MPC options
 ts = 0.3 # sampling time (length of one MPC window)
 N_mpc = 9 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 15
-tracking_options['mpc.max_cpu_time'] = 0.274
+tracking_options['mpc.max_iter'] = 18
+tracking_options['mpc.max_cpu_time'] = 0.27
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
@@ -117,10 +118,10 @@ trial.options_seed = tracking_options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
 mpc_opts['mpc']['max_iter'] = 18
-mpc_opts['mpc']['max_cpu_time'] = 0.274
+mpc_opts['mpc']['max_cpu_time'] = 0.27
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-mpc_opts['mpc']['ctrl_type'] = 'L1' # choose between  none, indi, and L1
+mpc_opts['mpc']['ctrl_type'] = 'none' # choose between  none, indi, and L1
 
 if mpc_opts['mpc']['ctrl_type'] == 'none':
     tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
@@ -583,10 +584,10 @@ for k in range(N_steps):
     scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
     gp_aero_scaled, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
     gp_aero = gp_scaler_o.inverse_transform(gp_aero_scaled)
-    perturbation_F = 0.07 * gp_aero[:,:3]
-    perturbation_M = 0.81 * gp_aero[:,3:]
+    perturbation_F = 0.075 * gp_aero[:,:3]
+    perturbation_M = 0.8 * gp_aero[:,3:]
     aero_out_pertubrated['F_ext'] = aero_out['F_ext'] - perturbation_F.T
-    aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
+    aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + np.diag([1, -1, 1]) @ perturbation_M.T
 
     u0['f_fict10'] = (aero_out_pertubrated['F_ext']) / scaling['u']['f_fict10']  # external force in inertial frame
     u0['m_fict10'] = (aero_out_pertubrated['M_ext'])/ scaling['u']['m_fict10']  # external moment in body-fixed frame
@@ -637,7 +638,7 @@ print("end of simulation...")
 # ----------------- specific plots ----------------- #
 
 # Legend labels
-legend_labels = ['reference (VLM, P={:.2f}MW)'.format(1e-6*P_ave_ref), 'ext. MPC (ALM, P={:.2f}MW)'.format(1e-6*P_ave_ext)]
+legend_labels = ['reference (' + aero_model_pp +', P={:.2f}MW)'.format(1e-6*P_ave_ref), 'ext. MPC ('+ aero_model_trac +', P={:.2f}MW)'.format(1e-6*P_ave_ext)]
 
 # plot 3D flight path
 trial.plot(['isometric'])
@@ -682,7 +683,7 @@ for k in range(1,3):
     ax[k].plot([0,t_end], [7.5,7.5], 'k--')
 ax[-1].plot([0,t_end], [-12,-12], 'k--')
 ax[-1].plot([0,t_end], [12,12], 'k--')
-for axes, var in zip(ax, ['da','de','dr','dlt']):
+for axes, var in zip(ax, ['$\delta_a \; [\circ]$','$\delta_e \; [\circ]$','$\delta_r \;[\circ]$', r'$\dot{l}_t \;[m/s]$']):
     axes.tick_params(axis='both', labelsize=12)
     axes.set_ylabel(var, fontsize=12)
     axes.grid()
@@ -707,7 +708,7 @@ for k in range(3):
     ax[k].plot([0,t_end], [25,25], 'k--')
 ax[-1].plot([0,t_end], [-2.5,-2.5], 'k--')
 ax[-1].plot([0,t_end], [2.5,2.5], 'k--')
-for axes, var in zip(ax, ['dda','dde','ddr','ddlt']):
+for axes, var in zip(ax, [r'$\dot{\delta}_a \; [\circ/s]$', r'$\dot{\delta}_e \; [\circ/s]$', r'$\dot{\delta}_r \; [\circ/s]$', r'$\ddot{l}_t \; [m/s^2]$']):
     axes.tick_params(axis='both', labelsize=12)
     axes.set_ylabel(var, fontsize=12)
     axes.grid()
@@ -763,21 +764,25 @@ fig.savefig('outputs_megawes_external_forces_tracking_plot_mpc_performance.png')
 # plot aeroforces/ torques and their pertubrated equvalented
 fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
-for i in range(3):
-        ax[i].plot(tsim[:-1],np.array([f[i] for f in fsim]),'-b', label='awe_aero')
-        ax[i].plot(tsim[:-1],np.array([f[i] for f in fsim_pert]),'-r', label='gp_aero')
+for i, lbl in zip(range(3),['$F_x \; [KN]$', '$F_y \; [KN]$', '$F_z \; [KN]$']):
+        ax[i].plot(tsim[:-1],np.array([f[i]/1e3 for f in fsim]),'-b', label='awe_aero')
+        ax[i].plot(tsim[:-1],np.array([f[i]/1e3 for f in fsim_pert]),'-r', label='gp_aero')
+        ax[i].set_xlabel('t [s]', fontsize=12)
+        ax[i].set_ylabel(lbl, fontsize=12)
         ax[i].legend(fontsize=8)
 
 fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
-for i in range(3):
-        ax[i].plot(tsim[:-1],np.array([m[i] for m in msim]),'-b', label='awe_aero')
-        ax[i].plot(tsim[:-1],np.array([m[i] for m in msim_pert]),'-r', label='gp_aero')
+for i,lbl in zip(range(3),['$M_l \;[KN.m]$', '$M_m \; [KN.m]$', '$M_n \; [KN.m]$']):
+        ax[i].plot(tsim[:-1],np.array([m[i]/1e3 for m in msim]),'-b', label='awe_aero')
+        ax[i].plot(tsim[:-1],np.array([m[i]/1e3 for m in msim_pert]),'-r', label='gp_aero')
+        ax[i].set_xlabel('t [s]', fontsize=12)
+        ax[i].set_ylabel(lbl, fontsize=12)
         ax[i].legend(fontsize=8)
 
 
 # plot power profile
-fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
 ax.plot(trial.visualization.plot_dict['time_grids']['ip'], 1e-6*trial.visualization.plot_dict['outputs']['performance']['p_current'][0])
 ax.plot(tsim, 1e-6*P_inst)
