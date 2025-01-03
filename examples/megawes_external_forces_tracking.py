@@ -44,7 +44,7 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation - Not available in MPC)
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 25.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
@@ -53,7 +53,7 @@ options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 80 # approximately 40 per loop
+options['nlp.n_k'] = 50 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
@@ -80,11 +80,14 @@ import sklearn
 with open('../gp_model.pkl', 'rb') as f:
     gp_loaded = pickle.load(f)
 
-with open('../gp_scaler.pkl', 'rb') as f:
-    gp_scaler = pickle.load(f)
+with open('../gp_scaler_i.pkl', 'rb') as f:
+    gp_scaler_i = pickle.load(f)
+
+with open('../gp_scaler_o.pkl', 'rb') as f:
+    gp_scaler_o = pickle.load(f)
 
 # simulation horizon
-t_end = 6*trial.visualization.plot_dict['theta']['t_f']
+t_end = 10 * trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 aero_model_trac='CFD'
@@ -94,10 +97,10 @@ tracking_options = set_megawes_path_tracking_settings(aero_model_trac, traj_opti
 # tracking_options['params.wind.log_wind.z0_air'] = 0.01
 # set MPC options
 ts = 0.3 # sampling time (length of one MPC window)
-N_mpc = 8 # MPC horizon (number of MPC windows in prediction horizon)
+N_mpc = 7 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 16
-tracking_options['mpc.max_cpu_time'] = 0.21
+tracking_options['mpc.max_iter'] = 20
+tracking_options['mpc.max_cpu_time'] = 0.27
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
@@ -115,24 +118,25 @@ trial.options_seed = tracking_options
 # create MPC options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
-mpc_opts['mpc']['max_iter'] = 16
-mpc_opts['mpc']['max_cpu_time'] = 0.21
+mpc_opts['mpc']['max_iter'] = 20
+mpc_opts['mpc']['max_cpu_time'] = 0.27
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
 mpc_opts['mpc']['ctrl_type'] = 'indi' # choose between  none, indi, and L1
 
-if mpc_opts['mpc']['ctrl_type'] == 'indi':
+if mpc_opts['mpc']['ctrl_type'] == 'none':
     tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
     tracking_options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
 # MPC weights
 nx = 23
 nu = 10
-Q = 0.5 * np.ones((nx, 1))
+Q = 0.0 * np.ones((nx, 1))
 # Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
-Q[18:21]  = 0.5 * np.ones((3, 1))  # control surafaces deflections
-R = 0.25 * np.ones((nu, 1))
-P = 1 * np.ones((nx, 1))
-P[18:21]  = 0.6 * np.ones((3, 1))
+Q[18:21]  = 0.0 * np.ones((3, 1))  # control surafaces deflections
+R = 0.0 * np.ones((nu, 1))
+P = 1.25 * np.ones((nx, 1))
+# P[18:21]  = 0.75 * np.ones((3, 1))
+
 # Q = 0.5 * np.ones((nx, 1))
 # R = np.ones((nu, 1))
 # P = np.ones((nx, 1))
@@ -330,7 +334,7 @@ if compilation_flag:
         os.system('mkdir '+output_folder)
 
     # save trial outputs (MPC requires attitude in DCM representation)
-    trial.write_to_csv(output_folder+'megawes_optimised_path_'+aero_model.lower(), rotation_representation="dcm") 
+    trial.write_to_csv(output_folder+'megawes_optimised_path_'+aero_model_pp.lower(), rotation_representation="dcm") 
 
     # save solver bounds
     for var in list(mpc.solver_bounds.keys()):
@@ -463,6 +467,9 @@ msim = []
 fsim_pert = []
 msim_pert  = []
 stats = []
+omega_hat = []
+sigma_hat = []
+omega_tild = []
 err_delta = [ca.GenDM_zeros(3,1)]
 N_mpc_fail = 0
 
@@ -471,7 +478,7 @@ N_max_fail = 1000 # stop count for failed MPC evaluations
 N_steps = int(t_end / dt)
 u_ndi = [ca.GenDM_zeros(3,1)]
 u0_call = ca.GenDM_zeros(10,1)
-x0_dot = ca.GenDM_zeros(nx,1) # mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(w0))['x',0]#
+x0_dot = mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(w0))['x',0]# ca.GenDM_zeros(nx,1) # 
 for k in range(N_steps):
 
     # current time
@@ -513,13 +520,12 @@ for k in range(N_steps):
 
         # embed NDI
         tmp_ndi = mpc.trial.nlp.V(V_shifted) 
-        mpc.A_omega  = -0.25 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
-        omega_co = 12
+        
         # mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
         if mpc_opts['mpc']['ctrl_type'] == 'indi':
 
-            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 0.5 * ca.diag([1.396, 1.396, 1.396]))         
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.5 * ca.diag([1.396, 1.396, 1.396]))        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
@@ -528,15 +534,20 @@ for k in range(N_steps):
         
         
         elif mpc_opts['mpc']['ctrl_type'] == 'L1':
+            mpc.A_omega  = -3.5 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
+            omega_co = 8
             if k == 0:
                 omega_hat_k = tmp_ndi['x'][0][6:9] #x0[6:9]
                 delta_L1 = tmp_ndi['x'][0][18:21].full()
 
             delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, omega_co, ts, params['theta0'], architecture)
+            omega_hat.append(omega_hat_k)
+            sigma_hat.append(sigma_hat_k)
+            omega_tild.append(omega_hat_k - x0[6:9])
             delta_L1 = ca.fmin(ca.fmax(delta_L1, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
             omega_hat_next = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, ts,  params['theta0'], architecture)
             omega_hat_k = ca.fmin(ca.fmax(omega_hat_next, -np.array(3*[50])*np.pi/180), np.array(3*[50])*np.pi/180)
-            u0_ndi = 0.5 * ca.diag([1.396, 1.396, 1.396]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
+            u0_ndi = 0.35 * ca.diag([1.396, 1.396, 1.396]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
@@ -580,14 +591,16 @@ for k in range(N_steps):
     aero_out_pertubrated = {}
     # aero_out_pertubrated['F_ext'] = aero_out['F_ext']  - dev_F_ext
     # aero_out_pertubrated['M_ext'] = aero_out['M_ext']  - dev_M_ext
-    scaled_inputs = gp_scaler.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
-    gp_aero, sigma = gp_loaded.predict(scaled_inputs, return_std=True)
+    scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
+    gp_aero_scaled, sigma_scaled = gp_loaded.predict(scaled_inputs, return_std=True)
 
-    perturbation_F = gp_aero[:,:3]
-    perturbation_M = gp_aero[:,3:]
-    aero_out_pertubrated['F_ext'] = aero_out['F_ext'] + perturbation_F.T
-    aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T
-
+    perturbation_F_M_scaled = gp_aero_scaled - 0 * sigma_scaled
+    perturbation_F_M = gp_scaler_o.inverse_transform(perturbation_F_M_scaled)
+    perturbation_F = perturbation_F_M[:,:3]
+    perturbation_M = perturbation_F_M[:,3:]
+    aero_out_pertubrated['F_ext'] = aero_out['F_ext'] + perturbation_F.T 
+    aero_out_pertubrated['M_ext'] = aero_out['M_ext'] + perturbation_M.T 
+    
     u0['f_fict10'] = (aero_out_pertubrated['F_ext']) / scaling['u']['f_fict10']  # external force in inertial frame
     u0['m_fict10'] = (aero_out_pertubrated['M_ext'])/ scaling['u']['m_fict10']  # external moment in body-fixed frame
 
@@ -645,6 +658,8 @@ fig = plt.gcf()
 fig.set_size_inches(8,8)
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
 ax = fig.get_axes()[0]
+ax.plot(xsim[0][0], xsim[0][1], xsim[0][2],  marker='o', markersize=10, markerfacecolor='none', markeredgecolor='red')
+ax.plot(xsim[-1][0], xsim[-1][1], xsim[-1][2],  marker='*', markersize=10, markerfacecolor='red', markeredgecolor='red')
 ax.plot([x[0] for x in xsim], [x[1] for x in xsim], [x[2] for x in xsim])
 ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
@@ -793,7 +808,13 @@ ax.tick_params(axis='both', labelsize=12)
 ax.set_xlabel('t [s]', fontsize=12)
 ax.set_ylabel('P [MW]', fontsize=12)
 ax.grid()
-fig.savefig('outputs_megawes_external_forces_tracking_plot_power.png')        
+fig.savefig('outputs_megawes_external_forces_tracking_plot_power.png')     
+
+if mpc_opts['mpc']['ctrl_type'] == 'L1':
+    fig, ax = plt.subplots(nrows=3, ncols=1,figsize=(8,8))
+    ax[0].step(np.array(tsim)[::60], np.array(omega_hat).squeeze())
+    ax[1].step(np.array(tsim)[::60], np.array(omega_tild).squeeze())
+    ax[2].step(np.array(tsim)[::60], np.array(sigma_hat).squeeze())
 # ----------------- end ----------------- #
 
 #%%

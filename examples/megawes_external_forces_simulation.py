@@ -95,8 +95,8 @@ with open(filename, 'rb') as handle:
 # set mpc options
 mpc_opts = {}
 mpc_opts['ipopt.linear_solver'] = 'ma57'
-mpc_opts['ipopt.max_iter'] = 250
-mpc_opts['ipopt.max_cpu_time'] = 10.
+mpc_opts['ipopt.max_iter'] = 25
+mpc_opts['ipopt.max_cpu_time'] = 0.35
 mpc_opts['ipopt.print_level'] = 0
 mpc_opts['ipopt.sb'] = "yes"
 mpc_opts['print_time'] = 0
@@ -155,12 +155,12 @@ N_max_fail = 1000 # stop count for failed MPC evaluations
 # solve MPC problem
 nx = 23
 nu = 10
-Q = 0.9 * np.ones((nx, 1))
+Q = 0.0 * np.ones((nx, 1))
 # Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
-Q[18:21]  = 0.6 * np.ones((3, 1))  # control surafaces deflections
-R = 0.65 * np.ones((nu, 1))
-P = 1 * np.ones((nx, 1))
-P[18:21]  = 0.9 * np.ones((3, 1))
+Q[18:21]  = 0.0 * np.ones((3, 1))  # control surafaces deflections
+R = 0.0 * np.ones((nu, 1))
+P = 1.2 * np.ones((nx, 1))
+P[18:21]  = 0.8 * np.ones((3, 1))
 u_ref = 12.
 
 u0_call = ca.GenDM_zeros(nu,1)
@@ -209,7 +209,7 @@ for k in range(N_steps):
         # retrieve new controls
         if indi_flag:
 
-            u0_ndi = helper_indi(x0, x0_dot, tmp_ndi, 1.35 * ca.diag([1.396, 1.396, 1.396]))         
+            u0_ndi = helper_indi(x0, x0_dot, tmp_ndi, 1.5 * ca.diag([1.396, 1.396, 1.396]))         
             u_winch = 0
             u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
@@ -296,7 +296,7 @@ ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
 ax.set_zlabel(ax.get_zlabel(), fontsize=12)
-ax.set_xlim([0,400])
+ax.set_xlim([0,800])
 ax.set_ylim([-200,200])
 ax.set_zlim([0,400])
 ax.view_init(azim=-70, elev=20)
