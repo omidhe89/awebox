@@ -419,8 +419,8 @@ def get_alpha(ua, r):
     # x component had better be positive
 
     # the small angle approximation of:
-    # alpha = cas.arctan(z_component / x_component)
-    alpha = z_component / x_component
+    alpha = cas.arctan(z_component / x_component)
+    # alpha = z_component / x_component
 
     return alpha
 
@@ -434,8 +434,8 @@ def get_beta(ua, r):
     # x component had better be positive
 
     # the small angle approximation of:
-    # beta = cas.arctan(y_component / x_component)
-    beta = y_component / x_component
+    beta = cas.arctan(y_component / x_component)
+    # beta = y_component / x_component
 
     return beta
 

@@ -21,7 +21,7 @@ plt.ion()
 # ----------------- user-specific options ----------------- #
 #%%
 # indicate aerodynamic model of aircraft
-aero_model = 'ALM' # options are 'VLM', 'ALM', and 'CFD'
+aero_model = 'VLM' # options are 'VLM', 'ALM', and 'CFD'
 
 # indicate desired system architecture
 options = {}
@@ -32,17 +32,17 @@ options = set_megawes_path_generation_settings(aero_model, options)
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
-options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 30.] # cycle period [s]
-
+options['user_options.trajectory.lift_mode.windings'] = 2 # number of loops
+options['model.system_bounds.theta.t_f'] = [1., 50.] # cycle period [s]
+options['nlp.phase_fix_reelout'] = 0.8
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
-options['user_options.wind.u_ref'] = 12.
+options['user_options.wind.u_ref'] = 15.
 options['params.wind.z_ref'] = 100.
 options['params.wind.log_wind.z0_air'] = 0.0002
 
 # indicate numerical nlp details
-options['nlp.n_k'] = 40 # approximately 40 per loop
+options['nlp.n_k'] = 100 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is 'shooting_nodes'
@@ -68,7 +68,7 @@ print('======================================')
 # ----------------- specific plots ----------------- #
 #%%
 # plot 3D flight path
-trial.plot(['isometric'])
+trial.plot(['isometric', 'controls', 'states', 'aero_dimensionless'])
 fig = plt.gcf()
 fig.set_size_inches(8,8)
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)

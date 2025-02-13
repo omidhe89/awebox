@@ -30,19 +30,19 @@ def set_megawes_path_generation_settings(aero_model, options):
     options['model.system_bounds.x.omega'] = [np.array([-10, -40, -25])*np.pi/180, np.array([10, 40, 25])*np.pi/180] # Angular rates [deg/s]
     options['user_options.kite_standard.geometry.delta_max'] = 0.8 * np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
     options['model.system_bounds.x.l_t'] = [10.0, 1e3] # Tether length [m]
-    options['model.system_bounds.x.dl_t'] = [-12.0, 12.0] # Tether speed [m/s]
+    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0] # Tether speed [m/s]
 
     # control variable bounds
     options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[25])*np.pi/180 # Deflection rates [deg/s]
-    options['model.ground_station.ddl_t_max'] = 2.5 # Tether acceleration [m/s^2]
+    options['model.ground_station.ddl_t_max'] = 4 # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #
     # validitiy of aerodynamic model
     options['model.model_bounds.aero_validity.include'] = True
-    options['user_options.kite_standard.aero_validity.beta_max_deg'] = 5.0
-    options['user_options.kite_standard.aero_validity.beta_min_deg'] = -5.0
-    options['user_options.kite_standard.aero_validity.alpha_max_deg'] = 4.
-    options['user_options.kite_standard.aero_validity.alpha_min_deg'] = -12.
+    options['user_options.kite_standard.aero_validity.beta_max_deg'] = 10.0
+    options['user_options.kite_standard.aero_validity.beta_min_deg'] = -10.0
+    options['user_options.kite_standard.aero_validity.alpha_max_deg'] = 4.2
+    options['user_options.kite_standard.aero_validity.alpha_min_deg'] = -15.
 
     # airspeed limitation
     options['model.model_bounds.airspeed.include'] = True
@@ -55,7 +55,7 @@ def set_megawes_path_generation_settings(aero_model, options):
 
     # peak power limit
     options['nlp.cost.P_max'] = True
-    options['model.system_bounds.theta.P_max'] = [2.5e6, 2.5e6]
+    options['model.system_bounds.theta.P_max'] = [4.5e6, 4.5e6]
     options['solver.cost.P_max.0'] = 1.0
 
     # acceleration constraint
