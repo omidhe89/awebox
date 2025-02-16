@@ -28,7 +28,7 @@ def set_megawes_path_generation_settings(aero_model, options):
     b = round(options['user_options.kite_standard']['geometry']['b_ref'], 1)
     options['model.system_bounds.x.q'] = [np.array([0, -ca.inf, 3*b]), np.array([700, ca.inf, ca.inf])] # Spatial footprint [m]
     options['model.system_bounds.x.omega'] = [np.array([-10, -40, -25])*np.pi/180, np.array([10, 40, 25])*np.pi/180] # Angular rates [deg/s]
-    options['user_options.kite_standard.geometry.delta_max'] = 0.8 * np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
+    options['user_options.kite_standard.geometry.delta_max'] = 0.7 * np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
     options['model.system_bounds.x.l_t'] = [10.0, 1e3] # Tether length [m]
     options['model.system_bounds.x.dl_t'] = [-10.0, 10.0] # Tether speed [m/s]
 
@@ -96,12 +96,12 @@ def set_megawes_path_tracking_settings(aero_model, options):
     b = round(options['user_options.kite_standard']['geometry']['b_ref'], 1)
     options['model.system_bounds.x.q'] = [np.array([0, -ca.inf, 2.5*b]), np.array([800, ca.inf, ca.inf])] # Spatial footprint [m]
     options['model.system_bounds.x.omega'] = [np.array(3*[-50])*np.pi/180, np.array(3*[50])*np.pi/180] # Angular rates [deg/s]
-    options['user_options.kite_standard.geometry.delta_max'] = 0.9 * np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
+    options['user_options.kite_standard.geometry.delta_max'] = 0.75 * np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
     options['model.system_bounds.x.l_t'] = [10.0, 1e3] # Tether length [m]
-    options['model.system_bounds.x.dl_t'] = [-15.0, 15.0] # Tether speed [m/s]
+    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0] # Tether speed [m/s]
 
     # control variable bounds
-    options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[40])*np.pi/180 # Deflection rates [deg/s]
+    options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[25])*np.pi/180 # Deflection rates [deg/s]
     options['model.ground_station.ddl_t_max'] = 5. # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #

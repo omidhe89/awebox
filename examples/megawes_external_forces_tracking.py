@@ -130,11 +130,11 @@ if mpc_opts['mpc']['ctrl_type'] == 'none':
 # MPC weights
 nx = 23
 nu = 10
-Q = 0.0 * np.ones((nx, 1))
+Q = 0.000 * np.ones((nx, 1))
 # Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
-Q[18:21]  = 0.0 * np.ones((3, 1))  # control surafaces deflections
+Q[18:21]  = 0.000 * np.ones((3, 1))  # control surafaces deflections
 R = 0.0 * np.ones((nu, 1))
-P = 1.25 * np.ones((nx, 1))
+P = 1.5 * np.ones((nx, 1))
 # P[18:21]  = 0.75 * np.ones((3, 1))
 
 # Q = 0.5 * np.ones((nx, 1))
@@ -525,32 +525,32 @@ for k in range(N_steps):
         # retrieve new controls
         if mpc_opts['mpc']['ctrl_type'] == 'indi':
 
-            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 1.15 * ca.diag([1.396, 1.396/1.5, 1.396/1.5]))        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 0.5 * ca.diag([1.396/1.2, 1.396/4, 1.396/4]))        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
             u_winch = 0
-            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] - u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
 
             u_ndi.append(u0_ndi)
         
         
         elif mpc_opts['mpc']['ctrl_type'] == 'L1':
-            mpc.A_omega  = 0.8* ca.diag([4.5, 4, 4])# -4 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
-            omega_co = 8
+            mpc.A_omega  = -1* ca.diag([0.3, 0.2, 0.15])# -4 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
+            omega_co = 9
             if k == 0:
                 omega_hat_k = tmp_ndi['x'][0][6:9] #x0[6:9]
                 delta_L1 = tmp_ndi['x'][0][18:21].full()
 
             delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, omega_co, ts, params['theta0'], architecture)
             sigma_hat.append(sigma_hat_k)
-            delta_L1 = ca.fmin(ca.fmax(delta_L1, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
+            delta_L1 = ca.fmin(ca.fmax(delta_L1, -0.9 * np.array([15, 10, 10])*np.pi/180), 0.9 * np.array([15, 10, 10])*np.pi/180)
             omega_hat.append(omega_hat_k)
             omega_tild.append(omega_hat_k - x0[6:9])
             omega_hat_next = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, ts,  params['theta0'], architecture)
             omega_hat_k = ca.fmin(ca.fmax(omega_hat_next, -np.array(3*[50])*np.pi/180), np.array(3*[50])*np.pi/180)
-            u0_ndi = 0.35 * ca.diag([1.396, 1.396, 1.396]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
+            u0_ndi = 0.5 * ca.diag([1.396/1.2, 1.396/4, 1.396/4]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
             u_winch = 0
-            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
-            u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] - u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[40])*np.pi/180, np.array(3*[40])*np.pi/180)
             u_ndi.append(u0_ndi)
         else:
             u0_call = out_ctrl['u0']
@@ -594,7 +594,7 @@ for k in range(N_steps):
     scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
     gp_aero_scaled, sigma_scaled = gp_loaded.predict(scaled_inputs, return_std=True)
 
-    perturbation_F_M_scaled = gp_aero_scaled - 0 * sigma_scaled
+    perturbation_F_M_scaled = 1.1 * gp_aero_scaled - 0 * sigma_scaled
     perturbation_F_M = gp_scaler_o.inverse_transform(perturbation_F_M_scaled)
     perturbation_F = perturbation_F_M[:,:3]
     perturbation_M = perturbation_F_M[:,3:]
@@ -693,10 +693,10 @@ ax[0].legend(legend_labels, fontsize=12) # ['tracking mpc', 'built-in mpc', 'ref
 ax[0].plot([0, t_end], [-15, -15], 'k--')
 ax[0].plot([0, t_end], [15, 15], 'k--')
 for k in range(1,3):
-    ax[k].plot([0,t_end], [-7.5,-7.5], 'k--')
-    ax[k].plot([0,t_end], [7.5,7.5], 'k--')
-ax[-1].plot([0,t_end], [-12,-12], 'k--')
-ax[-1].plot([0,t_end], [12,12], 'k--')
+    ax[k].plot([0,t_end], [-10,-10], 'k--')
+    ax[k].plot([0,t_end], [10,10], 'k--')
+ax[-1].plot([0,t_end], [-10,-10], 'k--')
+ax[-1].plot([0,t_end], [10,10], 'k--')
 for axes, var in zip(ax, ['$\delta_a \; [\circ]$','$\delta_e \; [\circ]$','$\delta_r \;[\circ]$', r'$\dot{l}_t \;[m/s]$']):
     axes.tick_params(axis='both', labelsize=12)
     axes.set_ylabel(var, fontsize=12)
@@ -812,9 +812,16 @@ fig.savefig('outputs_megawes_external_forces_tracking_plot_power.png')
 
 if mpc_opts['mpc']['ctrl_type'] == 'L1':
     fig, ax = plt.subplots(nrows=3, ncols=1,figsize=(8,8))
-    ax[0].step(np.array(tsim)[:-1:60], np.array(omega_hat).squeeze())
-    ax[1].step(np.array(tsim)[:-1:60], np.array(omega_tild).squeeze())
+    ax[0].step(np.array(tsim)[:-1:60], (180/np.pi) * np.array(omega_hat).squeeze())
+    ax[0].set_xlabel('t [s]', fontsize=12)
+    ax[0].set_ylabel(r'$\hat{\omega}  \; [\circ/s]$', fontsize=12)
+    ax[1].step(np.array(tsim)[:-1:60], (180/np.pi) * np.array(omega_tild).squeeze())
+    ax[1].set_xlabel('t [s]', fontsize=12)
+    ax[1].set_ylabel(r'$\tilde{\omega}  \; [\circ/s]$', fontsize=12)
     ax[2].step(np.array(tsim)[0:-1:60], np.array(sigma_hat).squeeze())
+    ax[2].set_xlabel('t [s]', fontsize=12)
+    ax[2].set_ylabel(r'$\hat{\sigma}$', fontsize=12)
 # ----------------- end ----------------- #
+
 
 #%%
