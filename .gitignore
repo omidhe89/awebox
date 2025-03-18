@@ -12,6 +12,7 @@ figures/
 *.jpg
 *.png
 *.eps
+*.pdf
 
 # Savefiles
 *.csv
@@ -48,3 +49,4 @@ experimental/
 
 # vscode configurations
 .vscode/
+

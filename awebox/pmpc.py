@@ -750,26 +750,30 @@ class Pmpc(object):
         return u_indi
     
     
-    def l1_adaptive_controller(self, xk, x_mpc, omega_hat_k, u_L1_pre, omega_co, Ts, parameters, architecture):
-        omega_tilde = omega_hat_k - xk[6:9]
+    def l1_adaptive_controller(self, x_k, x_mpc, omega_hat_k, u_L1_pre, omega_co, Ts, parameters, architecture):
+        omega_tilde = omega_hat_k - x_k[6:9]
         A_m = self.A_omega
         Phi = ct.inv(A_m) @ (np.exp(A_m * Ts) - np.eye(3))
         for kite in architecture.kite_nodes:
-            F = self.__f_rot_fun[kite](x_mpc, parameters)
-            G = self.__g_rot_fun[kite](x_mpc, parameters)
-            sigma_hat = - ct.inv(G) @ ct.inv(Phi)  @ (np.exp(A_m * Ts) @ omega_tilde)
+            # F = self.__f_rot_fun[kite](x_k, parameters)
+            G_k = self.__g_rot_fun[kite](x_k, parameters)
+            sigma_hat = - ct.inv(G_k) @ ct.inv(Phi)  @ (np.exp(A_m * Ts) @ omega_tilde)
             u_L1 = u_L1_pre * np.exp(-omega_co * Ts) - sigma_hat * (1 - np.exp(-omega_co * Ts))   
         return u_L1, sigma_hat
     
     def L1_adaptive_estimator(self, x_k, x_mpc, omega_hat_k, u_L1_k, sigma_hat_k, Ts, parameters, architecture):
         A_m = self.A_omega
         for kite in architecture.kite_nodes:
-            F_k = self.__f_rot_fun[kite](x_mpc, parameters)
-            G_k = self.__g_rot_fun[kite](x_mpc, parameters)
-        return omega_hat_k + Ts*(F_k + G_k @ (u_L1_k + sigma_hat_k) + A_m @ (omega_hat_k - x_k[6:9]))
+            F_k_ideal = self.__f_rot_fun[kite](x_mpc, parameters)
+            G_k_ideal = self.__g_rot_fun[kite](x_mpc, parameters)
+            G_k = self.__g_rot_fun[kite](x_k, parameters)
+            # F_k = self.__f_rot_fun[kite](x_k, parameters)
+            # F_m_ideal = F_k + G_k @ x_mpc[18:21]
+            F_m_ideal = F_k_ideal + G_k_ideal @ x_mpc[18:21]
+        return omega_hat_k + Ts*(F_m_ideal + G_k @ (u_L1_k + sigma_hat_k) + A_m @ (omega_hat_k - x_k[6:9]))
 
     @property
-    def trial(self):
+    def trial(self): 
         """ awebox.Trial attribute containing model and OCP info.
         """
         return self.__trial

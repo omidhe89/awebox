@@ -68,7 +68,8 @@ trial = awe.Trial(optimization_options, 'MegAWES')
 trial.build()
 trial.optimize(options_seed=optimization_options)
 
-trial.plot(['isometric', 'states'])
+trial.plot(['isometric'])
+
 # reference power
 P_ave_ref = trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]
 
@@ -87,25 +88,26 @@ with open('../gp_scaler_o.pkl', 'rb') as f:
     gp_scaler_o = pickle.load(f)
 
 # simulation horizon
-t_end = 10 * trial.visualization.plot_dict['theta']['t_f']
+t_end = 8 * trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 aero_model_trac='CFD'
 traj_options = {}
 traj_options = copy.deepcopy(optimization_options)
-traj_options['user_options.wind.u_ref'] = 12
+traj_options['user_options.wind.u_ref'] = 12.0
 tracking_options = set_megawes_path_tracking_settings(aero_model_trac, traj_options)
 # tracking_options['params.wind.log_wind.z0_air'] = 0.01
 # set MPC options
 ts = 0.3 # sampling time (length of one MPC window)
 N_mpc = 6 # MPC horizon (number of MPC windows in prediction horizon)
 tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 18
-tracking_options['mpc.max_cpu_time'] = 0.21
+tracking_options['mpc.max_iter'] = 25
+tracking_options['mpc.max_cpu_time'] = 0.218
 tracking_options['mpc.homotopy_warmstart'] = True
 tracking_options['mpc.terminal_point_constr'] = False
 
 # simulation options
+
 N_dt = ts / 0.005 # integrator steps within one sampling time
 N_sim = int(round(t_end/ts)) # number of MPC evaluations
 tracking_options['sim.number_of_finite_elements'] = N_dt
@@ -119,24 +121,26 @@ trial.options_seed = tracking_options
 # create MPC options
 mpc_opts = awe.Options()
 mpc_opts['mpc']['N'] = N_mpc
-mpc_opts['mpc']['max_iter'] = 18
-mpc_opts['mpc']['max_cpu_time'] = 0.21
+mpc_opts['mpc']['max_iter'] = 25
+mpc_opts['mpc']['max_cpu_time'] = 0.218
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
-mpc_opts['mpc']['ctrl_type'] = 'L1' # choose between  none, indi, and L1
+mpc_opts['mpc']['ctrl_type'] = 'none' # choose between  none, indi, and L1
 
 if mpc_opts['mpc']['ctrl_type'] == 'none':
     tracking_options['user_options.kite_standard.geometry.delta_max'] = np.array([15, 10, 10])*np.pi/180 # Surface deflections [deg]
-    tracking_options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
+    tracking_options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[40])*np.pi/180 # Deflection rates [deg/s]
 # MPC weights
 nx = 23
 nu = 10
-Q = 0.0 * np.ones((nx, 1))
+Q = 0.02 * np.ones((nx, 1))
+Q[22] = 0.4
+Q[0:2] = 0.1
 # Q[6:9]  = 0.6 * np.ones((3, 1))    # angular velocities
 # Q[18:21]  = 0.000 * np.ones((3, 1))  # control surafaces deflections
-R = 0.0 * np.ones((nu, 1))
-P = 1.5 * np.ones((nx, 1))
-# P[18:21]  = 0.75 * np.ones((3, 1))
+R = 0.01 * np.ones((nu, 1))
+P = 1.1 * np.ones((nx, 1)) #0.8
+P[18:21]  = 0.25 * np.ones((3, 1))
 
 # Q = 0.5 * np.ones((nx, 1))
 # R = np.ones((nu, 1))
@@ -324,7 +328,7 @@ indi_coeffs = ca.MX.sym('indi_coeffs', 3, 3)
 ddelta_indi = mpc.rotation_indi_controller(x0, x0_dot, tmp_V['xdot'][0], params['theta0'], architecture) #mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(V_shifted))['x',1] or  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',0],  mpc.trial.nlp.Xdot(mpc.trial.nlp.Xdot_fun(ref))['x',1]
 delta_indi =  x0[18:21] + ddelta_indi
 delta_indi = ca.fmin(ca.fmax(delta_indi, -np.array([15, 10, 10])*np.pi/180), np.array([15, 10, 10])*np.pi/180)
-u0_ndi = indi_coeffs @ (delta_indi - tmp_V['x'][0][18:21])
+u0_ndi = indi_coeffs @ ( tmp_V['x'][0][18:21] - delta_indi)
 helper_indi_function = ca.Function('helper_indi_function', [x0, x0_dot, tmp_V, indi_coeffs], [u0_ndi], ['x0', 'x0_dot', 'tmp_V', 'indi_coeffs'], ['u0_ndi'])
 # ----------------- save and compile dependencies ----------------- #
 if compilation_flag:
@@ -468,14 +472,14 @@ msim = []
 fsim_pert = []
 msim_pert  = []
 stats = []
-omega_hat = []
-sigma_hat = []
-omega_tild = []
+omega_hat = [x0[6:9]]
+sigma_hat = [ca.GenDM_zeros(3,1)]
+omega_tild = [ca.GenDM_zeros(3,1)]
 err_delta = [ca.GenDM_zeros(3,1)]
 N_mpc_fail = 0
 
 # Loop through time steps
-N_max_fail = 1000 # stop count for failed MPC evaluations
+N_max_fail = 2000 # stop count for failed MPC evaluations
 N_steps = int(t_end / dt)
 u_ndi = [ca.GenDM_zeros(3,1)]
 u0_call = ca.GenDM_zeros(10,1)
@@ -484,6 +488,10 @@ for k in range(N_steps):
 
     # current time
     current_time = k * dt
+    if current_time > 60 and current_time < 125:
+        traj_options['user_options.wind.u_ref'] = 10.0
+    else:
+        traj_options['user_options.wind.u_ref'] = 12.0
     # evaluate MPC
     if (k % N_dt) < 1e-6:
 
@@ -525,28 +533,31 @@ for k in range(N_steps):
         # mpc.A_omega = ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
         # retrieve new controls
         if mpc_opts['mpc']['ctrl_type'] == 'indi':
-
-            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, 0.5 * ca.diag([1.396/2, 1.396/4, 1.396/4]))        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1)))
+            K_p_indi =  1.5 * ca.diag([5* np.pi / 180, 5*np.pi / 180, 5* np.pi / 180]) # 0.5 * ca.diag([1.396/2, 1.396/4, 1.396/4]) #
+            u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, K_p_indi)        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1))) # 
             u_winch = 0
-            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] - u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
-            u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[50])*np.pi/180, np.array(3*[50])*np.pi/180)
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[40])*np.pi/180, np.array(3*[40])*np.pi/180)
 
             u_ndi.append(u0_ndi)
         
         
         elif mpc_opts['mpc']['ctrl_type'] == 'L1':
-            mpc.A_omega  = -1.0* ca.diag([0.4, 0.23, 0.23])# -4 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
-            omega_co = 600
+            mpc.A_omega  = -4.0 * ca.diag([1.0, 0.85, 1])# -4 * np.eye(3) #-ca.diag([1.25, 1.25, 1.25])#
+            omega_co = 300
             if k == 0:
-                omega_hat_k = tmp_ndi['x'][0][6:9] #x0[6:9]
-                delta_L1 = tmp_ndi['x'][0][18:21].full()
+                omega_hat_k =  tmp_ndi['x'][0][6:9] # x0[6:9] #
+                delta_L1 = tmp_ndi['x'][0][18:21].full() # np.zeros(3) # x0[18:21] #
 
             
-            u0_ndi = 1 * ca.diag([1.396/1.2, 1.396/4, 1.396/4]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
+            # u0_ndi = 0.5 * ca.diag([1.396/1.2, 1.396/4, 1.396/4]) @ (delta_L1 - tmp_ndi['x'][0][18:21])
+            u0_ndi = ca.diag([10 * np.pi / 180]) @ (tmp_ndi['x'][0][18:21] - delta_L1)
             u_winch = 0
-            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] - u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+            # check the kp sign 
+            u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
             u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[40])*np.pi/180, np.array(3*[40])*np.pi/180)
             u_ndi.append(u0_ndi)
+            
         else:
             u0_call = out_ctrl['u0']
 
@@ -566,6 +577,23 @@ for k in range(N_steps):
 
     else:
         # message
+        if (k % (N_dt/4)) < 1e-6 and k > 0:
+            if mpc_opts['mpc']['ctrl_type'] == 'L1':
+                u0_ndi = ca.diag([10 * np.pi / 180]) @ (tmp_ndi['x'][0][18:21] - delta_L1)
+                u_winch = 0
+                # check the kp sign 
+                u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+                u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[40])*np.pi/180, np.array(3*[40])*np.pi/180)
+                u_ndi.append(u0_ndi)
+                print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC " + msg + " step" + "->" +"L1 computed")
+            
+            elif mpc_opts['mpc']['ctrl_type'] == 'indi':
+                u0_ndi = helper_indi_function(x0, x0_dot, tmp_ndi, K_p_indi)        # 1.15 * ca.diag(np.abs(np.mean(np.hstack(tmp_ndi['x',:,'omega10']), axis=1))) # 0.5 * ca.diag([1.396/2, 1.396/4, 1.396/4])
+                u_winch = 0
+                u0_call = ca.vertcat(ca.GenDM_zeros(6,1), (out_ctrl['u0'][6:9] + u0_ndi) * scaling['u']['ddelta10'], out_ctrl['u0'][-1] + u_winch) #
+                u0_call[6:9] = np.clip(u0_call[6:9].full().T, -np.array(3*[40])*np.pi/180, np.array(3*[40])*np.pi/180)
+                u_ndi.append(u0_ndi)
+                print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC " + msg + " step" + "->" +"indi computed")
         print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time))
 
     # ----------------- evaluate aerodynamics ----------------- #
@@ -573,13 +601,15 @@ for k in range(N_steps):
     # evaluate forces and moments
     #x0 = x0 + ca.vertcat(ca.GenDM_zeros(3,1) , 0.005 * np.random.randn(3,1), 0.004 * np.random.randn(3,1), ca.GenDM_zeros(9,1), 0.000 * np.random.randn(3,1), ca.GenDM_zeros(2,1))
     if mpc_opts['mpc']['ctrl_type'] == 'L1':
-        delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, omega_co, 0.005, params['theta0'], architecture)
-        sigma_hat.append(sigma_hat_k)
+        delta_L1,  sigma_hat_k = mpc.l1_adaptive_controller(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, omega_co, dt, params['theta0'], architecture)
         delta_L1 = ca.fmin(ca.fmax(delta_L1, -0.9 * np.array([15, 10, 10])*np.pi/180), 0.9 * np.array([15, 10, 10])*np.pi/180)
+        omega_hat_next = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, dt,  params['theta0'], architecture)
+        omega_hat_k = ca.fmin(ca.fmax(omega_hat_next, -np.array(3*[50])*np.pi/180), np.array(3*[50])*np.pi/180)
+           
+        sigma_hat.append(sigma_hat_k)
         omega_hat.append(omega_hat_k)
         omega_tild.append(omega_hat_k - x0[6:9])
-        omega_hat_next = mpc.L1_adaptive_estimator(x0, tmp_ndi['x'][0], omega_hat_k, delta_L1, sigma_hat_k, 0.005,  params['theta0'], architecture)
-        omega_hat_k = ca.fmin(ca.fmax(omega_hat_next, -np.array(3*[50])*np.pi/180), np.array(3*[50])*np.pi/180)
+        
 
     aero_out = F_aero(x0=x0, u0=u0)
 
@@ -591,7 +621,7 @@ for k in range(N_steps):
     
     scaled_inputs = gp_scaler_i.transform(ca.vertcat(x0[3:21]).full().reshape(1,-1))
     gp_aero_scaled, sigma_scaled = gp_loaded.predict(scaled_inputs, return_std=True)
-    perturbation_F_M_scaled = 1.0 * gp_aero_scaled - 0 * sigma_scaled
+    perturbation_F_M_scaled = 1.0 * gp_aero_scaled + 0.0 * sigma_scaled * np.random.uniform(low=-1, high=1, size=(1, 6))
     perturbation_F_M = gp_scaler_o.inverse_transform(perturbation_F_M_scaled)
     perturbation_F = perturbation_F_M[:,:3]
     perturbation_M = perturbation_F_M[:,3:]
@@ -661,8 +691,14 @@ print("end of simulation...")
 # ----------------- specific plots ----------------- #
 
 # Legend labels
-legend_labels = ['reference (' + aero_model_pp +', P={:.2f}MW)'.format(1e-6*P_ave_ref), 'ext. MPC ('+ aero_model_trac +', P={:.2f}MW)'.format(1e-6*P_ave_ext)]
-
+# legend_labels = ['reference (' + aero_model_pp +', P={:.2f}MW)'.format(1e-6*P_ave_ref), 'ext. MPC ('+ aero_model_trac +', P={:.2f}MW)'.format(1e-6*P_ave_ext)]
+if mpc_opts['mpc']['ctrl_type'] == 'indi':
+    low_level_ctrl = '+indi'
+elif mpc_opts['mpc']['ctrl_type'] == 'L1':
+    low_level_ctrl = '+L1'
+else:
+    low_level_ctrl = ''
+legend_labels = ['reference' +', (P={:.2f}MW)'.format(1e-6*P_ave_ref), ' MPC' + low_level_ctrl + ', (P={:.2f}MW)'.format(1e-6*P_ave_ext)]
 # plot 3D flight path
 trial.plot(['isometric'])
 fig = plt.gcf()
@@ -686,7 +722,7 @@ l[-1].set_color('g')
 ax.get_legend().remove()
 ax.legend([l[0], l[-1]], legend_labels, fontsize=12)
 fig.suptitle("")
-fig.savefig('outputs_megawes_external_forces_tracking_plot_3dpath.png')
+fig.savefig('outputs_megawes_external_forces_tracking_plot_3dpath_' + low_level_ctrl + '.pdf', dpi=1000)
 
 # plot actuators
 fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
@@ -713,7 +749,7 @@ for axes, var in zip(ax, ['$\delta_a \; [\circ]$','$\delta_e \; [\circ]$','$\del
     axes.set_ylabel(var, fontsize=12)
     axes.grid()
 ax[-1].set_xlabel('t [s]', fontsize=12)
-fig.savefig('outputs_megawes_external_forces_tracking_plot_actuators.png')
+fig.savefig('outputs_megawes_external_forces_tracking_plot_actuators_' + low_level_ctrl + '.pdf', dpi=1000)
 
 # plot control inputs
 fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
@@ -738,7 +774,7 @@ for axes, var in zip(ax, [r'$\dot{\delta}_a \; [\circ/s]$', r'$\dot{\delta}_e \;
     axes.set_ylabel(var, fontsize=12)
     axes.grid()
 ax[-1].set_xlabel('t [s]', fontsize=12)
-fig.savefig('outputs_megawes_external_forces_tracking_plot_controls.png')
+fig.savefig('outputs_megawes_external_forces_tracking_plot_controls_' + low_level_ctrl + '.pdf', dpi=1000)
 
 # ----------------- evaluate MPC performance ----------------- #
 def visualize_mpc_perf(stats):
@@ -764,9 +800,16 @@ def visualize_mpc_perf(stats):
    mask_name = ['Solve_Succeeded', 'Solved_To_Acceptable_Level', 'Maximum_Iterations_Exceeded',
                 'Infeasible_Problem_Detected', 'Maximum_CpuTime_Exceeded']
    mask_clr = ['tab:green', 'tab:blue', 'tab:purple', 'tab:red', 'tab:orange']
-
-   # Plot
+   mask_list_short = []
+   mask_clr_short = []
+   mask_name_short = []
    for mask, clr, name in zip(mask_list, mask_clr, mask_name):
+       if iterations[mask].size > 0:
+            mask_list_short.append(mask)
+            mask_clr_short.append(clr)
+            mask_name_short.append(name)
+   # Plot
+   for mask, clr, name in zip(mask_list_short, mask_clr_short, mask_name_short):
        ax1.bar(eval[mask], iterations[mask], color=clr, label=name)
    ax2.plot(eval, walltime, '-k')  # , markeredgecolor='k', markerfacecolor=clr, label=name)
    ax2.plot([0, eval.max()], [ts, ts], 'r--')
@@ -783,7 +826,7 @@ def visualize_mpc_perf(stats):
    return fig
 
 fig = visualize_mpc_perf(stats)
-fig.savefig('outputs_megawes_external_forces_tracking_plot_mpc_performance.png')
+fig.savefig('outputs_megawes_external_forces_tracking_plot_mpc_performance_' + low_level_ctrl + '.pdf', dpi=1000)
 
 
 # plot aeroforces/ torques and their pertubrated equvalented
@@ -807,10 +850,23 @@ for i,lbl in zip(range(3),['$M_l \;[KN.m]$', '$M_m \; [KN.m]$', '$M_n \; [KN.m]$
 
 
 # plot power profile
+if mpc_opts['mpc']['ctrl_type'] == 'L1':
+    P_l1 = 1e-6*P_inst
+    t_L1 = tsim
+elif mpc_opts['mpc']['ctrl_type'] == 'indi':
+        P_indi = 1e-6*P_inst
+        t_indi = tsim
+else:
+    P_mpc = 1e-6*P_inst
+    t_mpc = tsim
+
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
-ax.plot(trial.visualization.plot_dict['time_grids']['ip'], 1e-6*trial.visualization.plot_dict['outputs']['performance']['p_current'][0])
-ax.plot(tsim, 1e-6*P_inst)
+ax.plot(trial.visualization.plot_dict['time_grids']['ip'], 1e-6*trial.visualization.plot_dict['outputs']['performance']['p_current'][0],color='blue', linewidth=2)
+ax.plot(tsim, 1e-6*P_inst,color='green', linewidth=2)
+# Plot the lines with red color and thicker width
+ax.plot([60, 60], [-5, 5], color='red', linewidth=3)  # First red line with thicker width
+ax.plot([120, 120], [-5, 5], color='red', linewidth=3)  # Second red line with thicker width
 l = ax.get_lines()
 l[0].set_color('b')
 l[-1].set_color('g')
@@ -819,20 +875,70 @@ ax.tick_params(axis='both', labelsize=12)
 ax.set_xlabel('t [s]', fontsize=12)
 ax.set_ylabel('P [MW]', fontsize=12)
 ax.grid()
-fig.savefig('outputs_megawes_external_forces_tracking_plot_power.png')     
+fig.savefig('outputs_megawes_external_forces_tracking_plot_power_' + low_level_ctrl + '.pdf', dpi=1000)     
 
+linestyles = ['-', '--', '-.']
+legend_labels = [r'$p$', r'$q$', r'$r$']
 if mpc_opts['mpc']['ctrl_type'] == 'L1':
+    L1_params = {}
+    L1_params['omega_hat'] = omega_hat
+    L1_params['omega_tild'] = omega_tild
+    L1_params['sigma_hat'] = sigma_hat
     fig, ax = plt.subplots(nrows=3, ncols=1,figsize=(8,8))
-    ax[0].step(np.array(tsim)[:-1], (180/np.pi) * np.array(omega_hat).squeeze())
-    ax[0].set_xlabel('t [s]', fontsize=12)
-    ax[0].set_ylabel(r'$\hat{\omega}  \; [\circ/s]$', fontsize=12)
-    ax[1].step(np.array(tsim)[:-1], (180/np.pi) * np.array(omega_tild).squeeze())
-    ax[1].set_xlabel('t [s]', fontsize=12)
-    ax[1].set_ylabel(r'$\tilde{\omega}  \; [\circ/s]$', fontsize=12)
-    ax[2].step(np.array(tsim)[0:-1], np.array(sigma_hat).squeeze())
-    ax[2].set_xlabel('t [s]', fontsize=12)
-    ax[2].set_ylabel(r'$\hat{\sigma}$', fontsize=12)
+    for i, key in enumerate(L1_params):
+        for j in range(3):
+            ax[i].step(np.array(tsim), (180/np.pi) * np.array(L1_params[key]).squeeze()[:,j],linestyle=linestyles[j], color='black')
+        ax[i].set_xlabel('t [s]', fontsize=12)
+        if key == 'omega_hat':
+            ax[i].legend(legend_labels, loc=1, fontsize=12)
+            ax[i].set_ylabel(r'$\hat{\omega}  \; [\circ/s]$', fontsize=12)
+        elif key == 'omega_tild':
+            ax[i].legend(legend_labels, loc=1, fontsize=12)
+            ax[i].set_ylabel(r'$\tilde{\omega}  \; [\circ/s]$', fontsize=12)
+        else:
+            ax[i].legend([r'$\hat{\sigma}_{p}$', r'$\hat{\sigma}_{q}$', r'$\hat{\sigma}_{r}$'], loc=1, fontsize=12)
+            ax[i].set_ylabel(r'$\hat{\sigma}$', fontsize=12)
+    fig.savefig('outputs_megawes_external_forces_tracking_plot_' + low_level_ctrl + '.pdf', dpi=1000)
+    #     ax[i].set_ylabel(r'$\hat{\omega}  \; [\circ/s]$', fontsize=12)
+    # ax[0].step(np.array(tsim), (180/np.pi) * np.array(omega_hat).squeeze(),color=['red', 'blue', 'green'])
+    # ax[0].set_xlabel('t [s]', fontsize=12)
+    # ax[0].set_ylabel(r'$\hat{\omega}  \; [\circ/s]$', fontsize=12)
+    # ax[1].step(np.array(tsim), (180/np.pi) * np.array(omega_tild).squeeze())
+    # ax[1].set_xlabel('t [s]', fontsize=12)
+    # ax[1].set_ylabel(r'$\tilde{\omega}  \; [\circ/s]$', fontsize=12)
+    # ax[2].step(np.array(tsim), np.array(sigma_hat).squeeze())
+    # ax[2].set_xlabel('t [s]', fontsize=12)
+    # ax[2].set_ylabel(r'$\hat{\sigma}$', fontsize=12)
 # ----------------- end ----------------- #
 
 
 #%%
+# post-processing
+# post-processing
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
+ax.plot(trial.visualization.plot_dict['time_grids']['ip'], 1e-6*trial.visualization.plot_dict['outputs']['performance']['p_current'][0],color='blue', linewidth=3)
+ax.plot(t_indi, P_indi, color='green',linestyle='--', linewidth=2)
+ax.plot(t_L1, P_l1, color='red', linestyle='--', linewidth=2)
+# Plot the lines with red color and thicker width
+ax.plot([60, 60], [-2.5, 4], color='black', linewidth=3)  # First red line with thicker width
+ax.plot([125, 125], [-2.5, 4], color='black', linewidth=3)  # Second red line with thicker width
+legend_labels = [r'$P_{ref}$', r'$P_{indi}$', r'$P_{L1}$']
+ax.legend(legend_labels, loc=1, fontsize=15)
+ax.tick_params(axis='both', labelsize=12)
+ax.set_xlabel('t [s]', fontsize=12)
+ax.set_ylabel('P [MW]', fontsize=12)
+ax.grid()
+fig.savefig('outputs_megawes_external_forces_tracking_plot_powers.pdf', dpi=1000) 
+# Add text between the two lines
+plt.text(90, 3.7, r'$V_{w} = 10$', fontsize=20, color='black', ha='center')
+
+# Add arrows pointing to each line
+plt.annotate('', xy=(75, 3.8), xytext=(60, 3.8),
+             arrowprops=dict(facecolor='black', edgecolor='black', arrowstyle='->', linewidth=3))
+
+plt.annotate('', xy=(110, 3.8), xytext=(125, 3.8),
+             arrowprops=dict(facecolor='black', edgecolor='black', arrowstyle='->', linewidth=3))
+ax.set_ylim([-2.5, 4])
+fig.savefig('outputs_megawes_external_forces_tracking_plot_powers.pdf', dpi=1000) 
+# %%
